@@ -1,0 +1,9 @@
+services:
+  game-solo:
+    build: .
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+    restart: always

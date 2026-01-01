@@ -42,7 +42,7 @@ Cuenta con un modo "Pro" experimental que permite usar un dispositivo móvil com
 
 El proyecto incluye un `Dockerfile` optimizado que sirve tanto el frontend (construido estáticamente) como el backend de señalización en un solo puerto.
 
-### Opción A: Construir y Correr Localmente
+### Opción A: Construir y Correr Localmente (Docker Tradicional)
 
 ```bash
 # 1. Construir imagen
@@ -53,7 +53,24 @@ docker run -p 3005:3005 game-solo
 ```
 Accede a `http://localhost:3005`.
 
-### Opción B: Despliegue en Nube (Recomendado para WebRTC)
+### Opción B: Docker Compose (Fácil)
+
+Si prefieres usar Docker Compose para orquestar el contenedor:
+
+```bash
+docker compose up --build -d
+```
+Esto construirá la imagen y levantará el servidor en segundo plano en el puerto 3005.
+Para ver los logs:
+```bash
+docker compose logs -f
+```
+Para detenerlo:
+```bash
+docker compose down
+```
+
+### Opción C: Despliegue en Nube (Recomendado para WebRTC)
 
 Para que el **Modo Pro (WebRTC)** funcione correctamente entre dispositivos en redes distintas (o móvil y PC), es **CRÍTICO** que la aplicación se sirva sobre **HTTPS**.
 
