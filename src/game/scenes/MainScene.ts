@@ -1,5 +1,5 @@
-import * as Phaser from 'phaser';
 import { audioManager } from '../AudioManager';
+import { connectionManager } from '../ConnectionManager';
 
 /**
  * MainScene Refactor: Lógica centralizada y clara.
@@ -24,6 +24,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   create() {
+    window.dispatchEvent(new CustomEvent('phaser-scene-change', { detail: { scene: 'MainScene' } }));
     const { width, height } = this.scale;
 
     // 1. Capas base
@@ -49,6 +50,16 @@ export class MainScene extends Phaser.Scene {
     // 6. Audio inicial
     this.sound.stopByKey('intro_music');
     this.sound.play('game_music', { loop: true, volume: 0.4 });
+
+    // 7. Eventos de Control Remoto (Pro)
+    connectionManager.subscribeEvents((event) => {
+      // Validar que la escena esté activa antes de procesar eventos
+      if (!this.scene.isActive('MainScene')) return;
+
+      if (event.type === 'action' && event.action === 'DROP') {
+        this.spawnApple();
+      }
+    });
   }
 
   /* --- MÉTODOS DE CREACIÓN --- */

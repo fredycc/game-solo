@@ -9,6 +9,7 @@ export class IntroScene extends Phaser.Scene {
   }
 
   create() {
+    window.dispatchEvent(new CustomEvent('phaser-scene-change', { detail: { scene: 'IntroScene' } }));
     const { width, height } = this.scale;
 
     // 1. Fondo
