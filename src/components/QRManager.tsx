@@ -8,17 +8,46 @@ export const QRManager = () => {
 
     const [isVisible, setIsVisible] = useState(true);
 
+    const [controllerUrl, setControllerUrl] = useState('');
+
     useEffect(() => {
         setGameId(connectionManager.getGameId());
 
-        // Fetch server IP
-        fetch(`http://${window.location.hostname}:3005/ip`)
-            .then(res => res.json())
-            .then(data => setIp(data.ip))
-            .catch(err => {
-                console.error("Could not fetch IP, falling back to hostname", err);
-                setIp(window.location.hostname);
-            });
+        const determineConnectionUrl = async () => {
+            let targetHost = window.location.hostname;
+            const isLocalhost = targetHost === 'localhost' || targetHost === '127.0.0.1';
+
+            // If we are on localhost, we try to get the Network IP for mobile access
+            if (isLocalhost) {
+                try {
+                    // Try to fetch IP from backend (assuming port 3005 for backend locally)
+                    // In dev, frontend is 5173, backend 3005. In prod (docker), both are same port.
+                    const backendPort = import.meta.env.DEV ? '3005' : window.location.port;
+                    const response = await fetch(`${window.location.protocol}//${window.location.hostname}:${backendPort}/ip`);
+                    const data = await response.json();
+                    if (data.ip) {
+                        targetHost = data.ip;
+                    }
+                } catch (err) {
+                    console.error("Could not fetch IP, falling back to hostname", err);
+                }
+            }
+
+            // Construct the final URL
+            const protocol = window.location.protocol;
+            let port = window.location.port ? `:${window.location.port}` : '';
+
+            // Fix: If we switched from localhost to Network IP in Dev mode, 
+            // we must ensure we point to the Vite port (5173), not stick to implicit ports.
+            if (import.meta.env.DEV && targetHost !== 'localhost' && targetHost !== '127.0.0.1') {
+                port = ':5173';
+            }
+
+            setIp(targetHost);
+            setControllerUrl(`${protocol}//${targetHost}${port}/controller?gameId=${connectionManager.getGameId()}`);
+        };
+
+        determineConnectionUrl();
 
         // Listen for scene changes
         const handleSceneChange = (e: any) => {
@@ -33,8 +62,6 @@ export const QRManager = () => {
         window.addEventListener('phaser-scene-change', handleSceneChange);
         return () => window.removeEventListener('phaser-scene-change', handleSceneChange);
     }, []);
-
-    const controllerUrl = `http://${ip}:5173/controller?gameId=${gameId}`;
 
     if (!gameId || !isVisible) return null;
 
