@@ -4,7 +4,7 @@ import { connectionManager } from '../game/ConnectionManager';
 
 export const QRManager = () => {
     const [gameId, setGameId] = useState('');
-    const [ip, setIp] = useState('');
+
 
     const [isVisible, setIsVisible] = useState(true);
 
@@ -43,7 +43,7 @@ export const QRManager = () => {
                 port = ':5173';
             }
 
-            setIp(targetHost);
+
             setControllerUrl(`${protocol}//${targetHost}${port}/controller?gameId=${connectionManager.getGameId()}`);
         };
 
