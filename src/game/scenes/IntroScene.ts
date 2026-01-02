@@ -24,19 +24,24 @@ export class IntroScene extends Phaser.Scene {
     // 2. Gestión de Inicio (Audio y Pantalla Completa)
     this.setupStartHandlers();
 
+    // Definición de Área Segura (Safe Area) para TV/Móvil
+    const safeTop = Math.max(120, height * 0.18); // 18% superior o 120px
+    const safeBottom = Math.max(100, height * 0.15); // 15% inferior o 100px
+    const centerY = height / 2;
+
     // 3. Título de la sección
-    this.createHeader(width);
+    this.createHeader(width, safeTop);
 
     // 4. Botones de Selección de Juego (Escalable)
     this.createGameButton(
       width / 2,
-      height * 0.45,
+      centerY,
       'Apple Tree Game',
       'MainScene'
     );
 
     // 5. Instrucciones secundarias
-    this.createFooterInstructions(width, height);
+    this.createFooterInstructions(width, height - safeBottom);
   }
 
   private setupStartHandlers() {
@@ -69,8 +74,8 @@ export class IntroScene extends Phaser.Scene {
     }
   }
 
-  private createHeader(width: number) {
-    this.add.text(width / 2, 80, 'GAMES', {
+  private createHeader(width: number, y: number) {
+    this.add.text(width / 2, y, 'GAMES', {
       fontFamily: 'Arial Black',
       fontSize: '80px',
       color: '#ffffff',
@@ -119,8 +124,8 @@ export class IntroScene extends Phaser.Scene {
     }
   }
 
-  private createFooterInstructions(width: number, height: number) {
-    const startText = this.add.text(width / 2, height * 0.85, 'Press ENTER or Click to Play', {
+  private createFooterInstructions(width: number, y: number) {
+    const startText = this.add.text(width / 2, y, 'Press ENTER or Click to Play', {
       fontFamily: 'Arial',
       fontSize: '28px',
       color: '#ffffff',
