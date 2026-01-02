@@ -14,6 +14,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('crosshair', Assets.crosshair);
     this.load.image('ui_btn_base', Assets.ui_btn_base);
     this.load.image('ui_btn_border', Assets.ui_btn_border);
+    this.load.image('intro_title', Assets.intro_game_opt);
 
     this.load.audio('intro_music', AudioAssets.intro);
     this.load.audio('game_music', AudioAssets.music_1);

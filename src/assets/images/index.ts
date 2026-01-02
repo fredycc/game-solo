@@ -5,6 +5,7 @@ import crosshair from './crosshair.svg?url';
 import vite from './vite.svg?url';
 import ui_btn_base from './ui_btn_base.svg?url';
 import ui_btn_border from './ui_btn_border.svg?url';
+import intro_game_opt from './intro_game_opt.png?url';
 
 export const Assets = {
     apple,
@@ -13,5 +14,6 @@ export const Assets = {
     crosshair,
     vite,
     ui_btn_base,
-    ui_btn_border
+    ui_btn_border,
+    intro_game_opt
 };

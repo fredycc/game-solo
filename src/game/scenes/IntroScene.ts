@@ -32,7 +32,7 @@ export class IntroScene extends Phaser.Scene {
     }
 
     // Definición de Área Segura (Safe Area) para TV/Móvil
-    const safeTop = Math.max(120, height * 0.18); // 18% superior o 120px
+    const safeTop = Math.max(180, height * 0.25); // Incrementado de 0.18 a 0.25 para bajar el logo
     const safeBottom = Math.max(100, height * 0.15); // 15% inferior o 100px
     const centerY = height / 2;
 
@@ -42,7 +42,7 @@ export class IntroScene extends Phaser.Scene {
     // 4. Botones de Selección de Juego (Escalable)
     this.createGameButton(
       width / 2,
-      centerY,
+      centerY + 80, // Bajado de centerY para dar más espacio respecto al logo
       'Apple Tree Game',
       'MainScene'
     );
@@ -77,13 +77,28 @@ export class IntroScene extends Phaser.Scene {
   }
 
   private createHeader(width: number, y: number) {
-    this.add.text(width / 2, y, 'GAMES', {
-      fontFamily: 'Fredoka',
-      fontSize: '80px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 10,
-    }).setOrigin(0.5);
+    const title = this.add.image(width / 2, y, 'intro_title')
+      .setOrigin(0.5)
+      .setScale(0); // Empezamos desde escala 0 para el zoom in
+
+    // Animación de entrada (Zoom In)
+    this.tweens.add({
+      targets: title,
+      scale: 1,
+      duration: 1000,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Una vez que termina el zoom in, añadimos un pequeño efecto de pulso/balanceo
+        this.tweens.add({
+          targets: title,
+          scale: 1.05,
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+    });
   }
 
   private createGameButton(x: number, y: number, label: number | string, sceneKey: string) {
