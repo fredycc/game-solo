@@ -4,8 +4,6 @@ export class WakeLockManager {
   private wakeLockTimer: number | null = null;
   private wakeLock: WakeLockSentinel | null = null;
   private isReleasing = false;
-  private readonly REFRESH_INTERVAL = 1000 * 60 * 5; // 5 min
-  private readonly HEARTBEAT_INTERVAL = 1000 * 30; // 30s
 
   private readonly videoSource = "data:video/webm;base64,GkXfowEAAAAAAAAfQoaBAUL3gQFC8oEEQvOBCEKChHdlYm1Ch4ECQoWBAhhTgGcBAAAAAAB2BxFNm3RALE27i1OrhBVJqWZTrIHfTbuMU6uEFlSua1OsggEuTbuMU6uEHFO7a1OsgnXq7AEAAAAAAACkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmAQAAAAAAAEMq17GDD0JATYCMTGF2ZjU2LjcuMTAyV0GMTGF2ZjU2LjcuMTAyc6SQgjdo9yCGPKbvRDsqy6e8XUSJiECMwAAAAAAAFlSuawEAAAAAAABDrgEAAAAAAAA614EBc8WBAZyBACK1nIN1bmSGhVZfVlA4g4EBI+ODhAJiWgDgAQAAAAAAAA6wg==";
 
@@ -112,18 +110,31 @@ export class WakeLockManager {
   private startRefreshTimer() {
     if (this.wakeLockTimer) clearInterval(this.wakeLockTimer);
     
-    // Reset cada 5 minutos
+    // Agitación del DOM y reset de video cada 30 segundos
     this.wakeLockTimer = window.setInterval(() => {
       if (this.videoElement && this.isVideoPlaying) {
-        this.videoElement.currentTime = 0;
+        // Forzar play/pause para re-despertar el hilo de video
         this.videoElement.play().catch(() => {});
+        
+        // Simular interacción con el DOM
+        const dummy = document.createElement('div');
+        dummy.style.display = 'none';
+        document.body.appendChild(dummy);
+        setTimeout(() => dummy.remove(), 100);
       }
-    }, this.REFRESH_INTERVAL);
+    }, 30000);
 
-    // Heartbeat cada 30 segundos
+    // Heartbeat cada 15 segundos con ruido
     window.setInterval(() => {
-      void this.videoElement?.currentTime;
-    }, this.HEARTBEAT_INTERVAL);
+      if (this.videoElement && this.isVideoPlaying) {
+        // 1. Alterar ligeramente el tiempo para forzar renderizado
+        this.videoElement.currentTime = Math.random() * 0.1;
+        
+        // 2. Realizar una acción de red "dummy" para engañar al sistema operativo
+        fetch('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==')
+          .catch(() => {});
+      }
+    }, 15000);
   }
 
   public async releaseWakeLock() {
