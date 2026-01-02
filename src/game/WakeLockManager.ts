@@ -57,18 +57,21 @@ export class WakeLockManager {
         src: this.videoSource
       });
       
-      // OPTIMIZACIÓN NUCLEAR PARA WEBOS:
-      // Video dentro del viewport pero invisible visualmente
-      // Opacidad muy baja (no 0), Z-Index alto pero pointer-events none
+      // OPTIMIZACIÓN NUCLEAR PARA WEBOS (Píxel Camaleón):
+      // Video visible pero mezclado con el fondo para ser imperceptible
       Object.assign(this.videoElement.style, {
         position: 'fixed',
         top: '0',
         left: '0',
-        width: '1px',
-        height: '1px',
-        opacity: '0.05', // Opacidad > 0 para que el compositor lo renderice
+        width: '4px',    // Un poco más grande para forzar el rasterizado
+        height: '4px',
+        opacity: '0.9',  // Opacidad alta (casi sólido)
+        zIndex: '9999',  // Al frente de todo
         pointerEvents: 'none',
-        zIndex: '-1', // Detrás del contenido pero en viewport
+        // Filtro para que el píxel sea casi invisible al ojo humano
+        // pero "real" para el procesador de imagen de la TV
+        mixBlendMode: 'difference',
+        filter: 'brightness(0.1)',
         visibility: 'visible'
       });
 
@@ -146,32 +149,26 @@ export class WakeLockManager {
   private startRefreshTimer() {
     if (this.wakeLockTimer) clearInterval(this.wakeLockTimer);
     
-    // Agitación del DOM y reset de video cada 30 segundos
+    // Killer Fix: Simular Teclas (Input Inyectado) cada 60s
+    // Si nada de lo anterior funciona, esto resetea el timer de inactividad por fuerza bruta
     this.wakeLockTimer = window.setInterval(() => {
-      if (this.videoElement && this.isVideoPlaying) {
-        // Forzar play/pause para re-despertar el hilo de video
-        this.videoElement.play().catch(() => {});
-        
-        // Simular interacción con el DOM
-        const dummy = document.createElement('div');
-        dummy.style.display = 'none';
-        document.body.appendChild(dummy);
-        setTimeout(() => dummy.remove(), 100);
-      }
-    }, 30000);
+       // 1. Reset Video Loop
+       if (this.videoElement && this.isVideoPlaying) {
+          this.videoElement.play().catch(() => {});
+       }
 
-    // Heartbeat cada 15 segundos con ruido
-    window.setInterval(() => {
-      if (this.videoElement && this.isVideoPlaying) {
-        // 1. Alterar ligeramente el tiempo para forzar renderizado
-        this.videoElement.currentTime = Math.random() * 0.1;
-        
-        // 2. Realizar una acción de red REAL para generar tráfico en la tarjeta de red
-        // WebOS ignora data-uris, necesita ver paquetes TCP reales.
-        fetch(`https://clients3.google.com/generate_204?t=${Date.now()}`, { mode: 'no-cors' })
-          .catch(() => {});
-      }
-    }, 15000);
+       // 2. Input Injection
+       try {
+           const event = new KeyboardEvent('keydown', {
+               key: 'Shift',
+               code: 'ShiftLeft',
+               keyCode: 16,
+               charCode: 0,
+               bubbles: true
+           });
+           window.dispatchEvent(event);
+       } catch { /* ignore */ }
+    }, 60000);
   }
 
   public async releaseWakeLock() {
