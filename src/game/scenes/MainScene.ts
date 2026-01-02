@@ -41,6 +41,17 @@ export class MainScene extends Phaser.Scene {
     window.dispatchEvent(new CustomEvent('phaser-scene-change', { detail: { scene: 'MainScene' } }));
     const { width, height } = this.scale;
 
+    // --- enforces: "Always start with music and fullscreen" (Best Effort) ---
+    // 1. Try Fullscreen (Will fail if triggered remotely due to browser policy, but works for local clicks)
+    if (!this.scale.isFullscreen) {
+      this.scale.startFullscreen();
+    }
+
+    // 2. Force Audio Resume & Context
+    if ((this.sound as Phaser.Sound.WebAudioSoundManager).context.state === 'suspended') {
+      (this.sound as Phaser.Sound.WebAudioSoundManager).context.resume();
+    }
+
     // ... rest of the layers ...
     this.add.rectangle(0, 0, width, height, 0x87CEEB).setOrigin(0);
     this.createGround(width, height);
@@ -57,8 +68,8 @@ export class MainScene extends Phaser.Scene {
     this.setupCollisions();
     this.setupResizeListener();
 
-    // 6. Audio inicial
-    this.sound.stopByKey('intro_music');
+    // 6. Audio inicial (Ensured)
+    this.sound.stopAll(); // Ensure clean slate
     this.sound.play('game_music', { loop: true, volume: 0.4 });
 
     // 7. Eventos de Control Remoto (Pro)
@@ -122,7 +133,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   private createBackButton(width: number) {
-    this.backBtnContainer = this.add.container(width - 90, 40);
+    // SAFE AREA: Margen superior para evitar cortes en TV/Navegadores
+    this.backBtnContainer = this.add.container(width - 110, 80);
     const bg = this.add.image(0, 0, 'back_btn').setInteractive({ useHandCursor: true });
     const text = this.add.text(15, -2, 'INICIO', {
       fontFamily: 'Arial Black',
@@ -251,7 +263,9 @@ export class MainScene extends Phaser.Scene {
       }
 
       if (this.backBtnContainer) {
-        this.backBtnContainer.x = width - 90;
+        // SAFE AREA: Mantenemos más margen para TVs y barras de navegador
+        this.backBtnContainer.x = width - 110;
+        this.backBtnContainer.y = 80;
       }
 
       // Limpiar manzanas viejas para evitar "fantmas" al redimensionar
@@ -297,7 +311,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   private moveCloud(cloud: any) {
-    cloud.y = Phaser.Math.Between(50, 200);
+    // Nubes más abajo para no estorbar la UI superior (SAFE ZONE)
+    cloud.y = Phaser.Math.Between(120, 250);
     this.tweens.add({
       targets: cloud,
       x: -150,
