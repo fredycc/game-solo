@@ -44,7 +44,7 @@ export class IntroScene extends Phaser.Scene {
       width / 2,
       centerY + 80, // Bajado de centerY para dar más espacio respecto al logo
       'Apple Tree Game',
-      'MainScene'
+      'GameLoadingScene'
     );
 
     // 5. Instrucciones secundarias
@@ -104,7 +104,8 @@ export class IntroScene extends Phaser.Scene {
   private createGameButton(x: number, y: number, label: number | string, sceneKey: string) {
     // Acción de inicio
     const startGame = () => {
-      this.sound.stopAll();
+      // No detenemos la música aquí para que siga sonando durante la pantalla de carga (GameLoadingScene)
+      // La música se detendrá en MainScene.create() antes de iniciar la música del juego.
       this.scene.start(sceneKey);
     };
 

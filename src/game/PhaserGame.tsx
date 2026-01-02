@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { IntroScene } from './scenes/IntroScene';
+import { GameLoadingScene } from './scenes/GameLoadingScene';
 import { MainScene } from './scenes/MainScene';
 import { connectionManager } from './ConnectionManager';
 
@@ -84,7 +85,7 @@ export const PhaserGame = () => {
         height: '100%',
         fullscreenTarget: 'game-root'
       },
-      scene: [BootScene, IntroScene, MainScene]
+      scene: [BootScene, IntroScene, GameLoadingScene, MainScene]
     };
 
     gameRef.current = new Phaser.Game(config);

@@ -1,4 +1,4 @@
-# Apple Tree Game - Solo & Pro Mode
+# Apple Tree Game
 
 Juego interactivo desarrollado con **React**, **Phaser 3.90** y **Node.js**.  
 Cuenta con un modo "Pro" experimental que permite usar un dispositivo móvil como control remoto mediante **WebSockets** y **WebRTC** (PeerJS).

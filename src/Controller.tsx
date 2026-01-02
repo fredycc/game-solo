@@ -122,7 +122,7 @@ export const Controller = () => {
             {/* Header */}
             <div style={{ padding: '15px', background: '#4CAF50', borderBottom: '5px solid #388E3C', borderRadius: '0 0 20px 20px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ margin: 0, fontSize: '20px', textShadow: '2px 2px 0px #388E3C' }}>PRO GAMEPAD</h2>
+                    <h2 style={{ margin: 0, fontSize: '20px', textShadow: '2px 2px 0px #388E3C' }}>GAMEPAD</h2>
                     <div style={{ fontSize: '10px', display: 'flex', gap: '5px' }}>
                         <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: connType === 'P2P' ? '#4CAF50' : '#888', border: '2px solid white' }} title="P2P" />
                         <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: connType === 'SERVER' ? '#2196F3' : '#888', border: '2px solid white' }} title="Relay" />

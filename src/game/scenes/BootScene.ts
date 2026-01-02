@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { Assets } from '../../assets/images';
 import { AudioAssets } from '../../audio';
+import { LoadingBar } from '../ui/LoadingBar';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -8,16 +9,22 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('apple', Assets.apple);
-    this.load.image('tree', Assets.tree);
-    this.load.image('cloud', Assets.cloud);
-    this.load.image('crosshair', Assets.crosshair);
+    // 1. Fondo de la escena (Azul cielo) - Para mantener consistencia
+    const { width, height } = this.scale;
+    this.add.rectangle(0, 0, width, height, 0x87CEEB).setOrigin(0);
+
+    // 2. Inicializar Barra de Carga
+    new LoadingBar(this);
+
+    // 3. Cargar SOLO assets esenciales para la Intro/UI Global
     this.load.image('ui_btn_base', Assets.ui_btn_base);
     this.load.image('ui_btn_border', Assets.ui_btn_border);
     this.load.image('intro_title', Assets.intro_game_opt);
 
+    // Música de intro (esencial para el menú)
     this.load.audio('intro_music', AudioAssets.intro);
-    this.load.audio('game_music', AudioAssets.music_1);
+    
+    // NOTA: Los assets del juego ('apple', 'tree', etc.) se mueven a GameLoadingScene
   }
 
   create() {

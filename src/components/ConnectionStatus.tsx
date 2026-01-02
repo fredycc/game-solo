@@ -49,9 +49,9 @@ export const ConnectionStatus = () => {
 
     const getStatusText = () => {
         switch (state) {
-            case 'connected': return 'PRO CONNECTED';
+            case 'connected': return 'CONNECTED';
             case 'signaling': return 'CONNECTING...';
-            case 'disconnected': return 'PRO DISCONNECTED';
+            case 'disconnected': return 'DISCONNECTED';
             default: return 'DISCONNECTED';
         }
     };

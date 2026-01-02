@@ -92,7 +92,7 @@ export const QRManager = () => {
                 letterSpacing: '1px',
                 fontWeight: '800'
             }}>
-                Join Game
+                Únete
             </h3>
 
             <div style={{
@@ -110,7 +110,7 @@ export const QRManager = () => {
                     color: '#666',
                     marginBottom: '2px'
                 }}>
-                    Comp. Code
+                    Code
                 </p>
                 <p style={{
                     margin: 0,
