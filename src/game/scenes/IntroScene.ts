@@ -23,6 +23,12 @@ export class IntroScene extends Phaser.Scene {
 
     // 2. Gestión de Inicio (Audio y Pantalla Completa)
     this.setupStartHandlers();
+    if (!this.sound.locked) {
+      const intro = this.sound.get('intro_music');
+      if (!intro || !intro.isPlaying) {
+        this.sound.play('intro_music', { loop: true, volume: 0.5 });
+      }
+    }
 
     // Definición de Área Segura (Safe Area) para TV/Móvil
     const safeTop = Math.max(120, height * 0.18); // 18% superior o 120px
@@ -45,32 +51,27 @@ export class IntroScene extends Phaser.Scene {
   }
 
   private setupStartHandlers() {
-    const onFirstInteraction = () => {
-      // Activar pantalla completa
-      if (!this.scale.isFullscreen) {
-        this.scale.startFullscreen();
-      }
-
-      // Activar audio
+    const startIntroMusic = () => {
       if (!this.sound.locked) {
         const intro = this.sound.get('intro_music');
         if (!intro || !intro.isPlaying) {
           this.sound.play('intro_music', { loop: true, volume: 0.5 });
         }
       }
+    };
 
-      // Limpiar escuchadores una vez activado
-      this.input.off('pointerdown', onFirstInteraction);
-      window.removeEventListener('remote-interaction', onFirstInteraction);
+    const onFirstUserGesture = () => {
+      startIntroMusic();
+
+      this.input.off('pointerdown', onFirstUserGesture);
       if (this.input.keyboard) {
-        this.input.keyboard.off('keydown', onFirstInteraction);
+        this.input.keyboard.off('keydown', onFirstUserGesture);
       }
     };
 
-    this.input.on('pointerdown', onFirstInteraction);
-    window.addEventListener('remote-interaction', onFirstInteraction);
+    this.input.on('pointerdown', onFirstUserGesture);
     if (this.input.keyboard) {
-      this.input.keyboard.on('keydown', onFirstInteraction);
+      this.input.keyboard.on('keydown', onFirstUserGesture);
     }
   }
 

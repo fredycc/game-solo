@@ -1,7 +1,32 @@
 import { io, Socket } from 'socket.io-client';
 import Peer from 'peerjs';
 
-type DataConnection = any;
+export type GameEvent =
+    | { type: 'move'; dx: number; dy: number }
+    | { type: 'action'; action: string };
+
+type DataConnection = {
+    open: boolean;
+    close(): void;
+    send(data: GameEvent): void;
+    on(event: 'open', callback: () => void): void;
+    on(event: 'data', callback: (data: unknown) => void): void;
+};
+
+const isGameEvent = (value: unknown): value is GameEvent => {
+    if (!value || typeof value !== 'object') return false;
+    const v = value as Record<string, unknown>;
+
+    if (v.type === 'move') {
+        return typeof v.dx === 'number' && typeof v.dy === 'number';
+    }
+
+    if (v.type === 'action') {
+        return typeof v.action === 'string';
+    }
+
+    return false;
+};
 
 export type ConnectionState = 'disconnected' | 'signaling' | 'connected';
 
@@ -12,7 +37,7 @@ class ConnectionManager {
     private gameId: string = '';
     private state: ConnectionState = 'disconnected';
     private stateListeners: Set<(state: ConnectionState) => void> = new Set();
-    private eventListeners: Set<(event: any) => void> = new Set();
+    private eventListeners: Set<(event: GameEvent) => void> = new Set();
     private isInitializing: boolean = false;
 
     constructor() {
@@ -31,7 +56,7 @@ class ConnectionManager {
         };
     }
 
-    subscribeEvents(callback: (event: any) => void) {
+    subscribeEvents(callback: (event: GameEvent) => void) {
         this.eventListeners.add(callback);
         return () => {
             this.eventListeners.delete(callback);
@@ -49,8 +74,8 @@ class ConnectionManager {
                 this.socket?.emit('host-game', this.gameId);
             });
 
-            this.socket.on('game-event', (event) => {
-                this.emitEvent(event);
+            this.socket.on('game-event', (event: unknown) => {
+                if (isGameEvent(event)) this.emitEvent(event);
             });
 
             const url = new URL(serverUrl);
@@ -72,19 +97,21 @@ class ConnectionManager {
             });
 
             this.peer.on('connection', (connection) => {
-                this.conn = connection;
+                this.conn = connection as unknown as DataConnection;
                 this.conn.on('open', () => {
                     console.log('PC: P2P OK');
                     this.updateState('connected');
                 });
-                this.conn.on('data', (data: any) => this.emitEvent(data));
+                this.conn.on('data', (data: unknown) => {
+                    if (isGameEvent(data)) this.emitEvent(data);
+                });
             });
 
             this.socket.on('player-joined', () => {
                 if (this.state === 'signaling') this.updateState('connected');
             });
 
-        } catch (error) {
+        } catch {
             this.updateState('disconnected');
         } finally {
             this.isInitializing = false;
@@ -96,7 +123,7 @@ class ConnectionManager {
         this.stateListeners.forEach(cb => cb(state));
     }
 
-    private emitEvent(event: any) {
+    private emitEvent(event: GameEvent) {
         this.eventListeners.forEach(cb => cb(event));
     }
 
@@ -138,7 +165,7 @@ class ConnectionManager {
         this.peer.on('open', () => {
             const connection = this.peer!.connect(`host-${gameId}`, {
                 reliable: true
-            });
+            }) as unknown as DataConnection;
 
             connection.on('open', () => {
                 this.conn = connection;
@@ -172,7 +199,7 @@ class ConnectionManager {
         return 'NONE';
     }
 
-    sendEvent(event: any) {
+    sendEvent(event: GameEvent) {
         if (this.conn && this.conn.open) {
             this.conn.send(event);
         } else if (this.socket && this.socket.connected) {

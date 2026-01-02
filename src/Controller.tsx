@@ -4,21 +4,18 @@ import type { ConnectionState } from './game/ConnectionManager';
 
 export const Controller = () => {
     const [state, setState] = useState<ConnectionState>('disconnected');
-    const [gameId, setGameId] = useState('');
+    const [gameId] = useState(() => new URLSearchParams(window.location.search).get('gameId') ?? '');
     const [connType, setConnType] = useState<'P2P' | 'SERVER' | 'NONE'>('NONE');
 
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const id = urlParams.get('gameId');
-        if (id) {
-            setGameId(id);
+        if (gameId) {
             const isDev = import.meta.env.DEV;
             const serverUrl = isDev
                 ? `http://${window.location.hostname}:3005`
                 : window.location.origin;
 
             console.log(`[Controller] Connecting to: ${serverUrl}`);
-            connectionManager.connectAsController(serverUrl, id);
+            connectionManager.connectAsController(serverUrl, gameId);
         }
 
         const unsubscribe = connectionManager.subscribeState((newState) => {
@@ -34,7 +31,7 @@ export const Controller = () => {
             unsubscribe();
             clearInterval(interval);
         };
-    }, []);
+    }, [gameId]);
 
     const [touchStartPos, setTouchStartPos] = useState<{ x: number, y: number } | null>(null);
     const [lastTouch, setLastTouch] = useState<{ x: number, y: number } | null>(null);

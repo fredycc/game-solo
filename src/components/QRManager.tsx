@@ -3,7 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { connectionManager } from '../game/ConnectionManager';
 
 export const QRManager = () => {
-    const [gameId, setGameId] = useState('');
+    const [gameId] = useState(() => connectionManager.getGameId());
 
 
     const [isVisible, setIsVisible] = useState(true);
@@ -11,8 +11,6 @@ export const QRManager = () => {
     const [controllerUrl, setControllerUrl] = useState('');
 
     useEffect(() => {
-        setGameId(connectionManager.getGameId());
-
         const determineConnectionUrl = async () => {
             let targetHost = window.location.hostname;
             const isLocalhost = targetHost === 'localhost' || targetHost === '127.0.0.1';
@@ -50,8 +48,9 @@ export const QRManager = () => {
         determineConnectionUrl();
 
         // Listen for scene changes
-        const handleSceneChange = (e: any) => {
-            const scene = e.detail?.scene;
+        const handleSceneChange = (e: Event) => {
+            const { detail } = e as CustomEvent<{ scene?: string }>;
+            const scene = detail?.scene;
             if (scene === 'IntroScene') {
                 setIsVisible(true);
             } else if (scene === 'MainScene') {

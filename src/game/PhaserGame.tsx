@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { IntroScene } from './scenes/IntroScene';
@@ -6,9 +6,62 @@ import { MainScene } from './scenes/MainScene';
 import { connectionManager } from './ConnectionManager';
 
 export const PhaserGame = () => {
-  const gameRef = useRef<any>(null);
+  const gameRef = useRef<Phaser.Game | null>(null);
+  const [started, setStarted] = useState(false);
 
   useEffect(() => {
+    const resumeAudioIfNeeded = () => {
+      const game = gameRef.current;
+      if (game) {
+        const soundManager = game.sound as unknown as { context?: AudioContext };
+        if (soundManager.context?.state === 'suspended') {
+          soundManager.context.resume().catch(() => { });
+        }
+      }
+    };
+
+    const requestFullscreenIfPossible = () => {
+      if (document.fullscreenElement) return;
+      const userActivation = navigator.userActivation;
+      if (userActivation && !userActivation.isActive) return;
+      const root = document.getElementById('game-root');
+      const target = root ?? document.documentElement;
+      const p = target.requestFullscreen?.();
+      if (p) p.catch(() => { });
+    };
+
+    const onUserGesture = () => {
+      resumeAudioIfNeeded();
+      requestFullscreenIfPossible();
+    };
+
+    const onRemoteInteraction = () => {
+      resumeAudioIfNeeded();
+    };
+
+    window.addEventListener('click', onUserGesture);
+    window.addEventListener('keydown', onUserGesture);
+    window.addEventListener('remote-interaction', onRemoteInteraction);
+
+    const handleUnload = () => {
+      connectionManager.disconnect();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      if (gameRef.current) {
+        window.removeEventListener('click', onUserGesture);
+        window.removeEventListener('keydown', onUserGesture);
+        window.removeEventListener('remote-interaction', onRemoteInteraction);
+        window.removeEventListener('beforeunload', handleUnload);
+        handleUnload();
+        gameRef.current.destroy(true);
+        gameRef.current = null;
+      }
+    };
+  }, []);
+
+  const createGameIfNeeded = () => {
     if (gameRef.current) return;
 
     const config: Phaser.Types.Core.GameConfig = {
@@ -35,37 +88,55 @@ export const PhaserGame = () => {
     };
 
     gameRef.current = new Phaser.Game(config);
+  };
 
-    const resumeAudio = () => {
-      if (gameRef.current && gameRef.current.sound.context.state === 'suspended') {
-        gameRef.current.sound.context.resume();
-      }
-      window.removeEventListener('click', resumeAudio);
-      window.removeEventListener('keydown', resumeAudio);
-      window.removeEventListener('remote-interaction', resumeAudio);
-    };
+  const requestFullscreen = () => {
+    if (document.fullscreenElement) return;
+    const root = document.getElementById('game-root');
+    const target = root ?? document.documentElement;
+    const p = target.requestFullscreen?.();
+    if (p) p.catch(() => { });
+  };
 
-    window.addEventListener('click', resumeAudio);
-    window.addEventListener('keydown', resumeAudio);
-    window.addEventListener('remote-interaction', resumeAudio);
-
-    const handleUnload = () => {
-      connectionManager.disconnect();
-    };
-    window.addEventListener('beforeunload', handleUnload);
-
-    return () => {
-      if (gameRef.current) {
-        window.removeEventListener('click', resumeAudio);
-        window.removeEventListener('keydown', resumeAudio);
-        window.removeEventListener('remote-interaction', resumeAudio);
-        window.removeEventListener('beforeunload', handleUnload);
-        handleUnload();
-        gameRef.current.destroy(true);
-        gameRef.current = null;
-      }
-    };
-  }, []);
-
-  return <div id="phaser-container" style={{ width: '100vw', height: '100vh' }} />;
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <div id="phaser-container" style={{ width: '100vw', height: '100vh' }} />
+      {!started && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#87CEEB',
+            color: '#1a1a1a',
+            fontFamily: 'Arial Black, sans-serif',
+            userSelect: 'none'
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              requestFullscreen();
+              createGameIfNeeded();
+              setStarted(true);
+            }}
+            style={{
+              padding: '18px 26px',
+              borderRadius: '18px',
+              border: 'none',
+              background: '#FFD700',
+              color: '#1a1a1a',
+              fontSize: '20px',
+              fontWeight: 900,
+              cursor: 'pointer'
+            }}
+          >
+            TOCA PARA INICIAR
+          </button>
+        </div>
+      )}
+    </div>
+  );
 };

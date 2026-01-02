@@ -10,6 +10,7 @@ export class MainScene extends Phaser.Scene {
   // Miembros de clase
   private remoteCursor!: RemoteCursor;
   private eventUnsubscribe: (() => void) | null = null;
+  private resizeHandler: ((gameSize: Phaser.Structs.Size) => void) | null = null;
   private tree!: Phaser.GameObjects.Container;
   private apples!: Phaser.Physics.Arcade.Group;
   private ground!: Phaser.GameObjects.Rectangle;
@@ -33,6 +34,10 @@ export class MainScene extends Phaser.Scene {
     const cleanup = () => {
       this.remoteCursor.destroy();
       this.eventUnsubscribe?.();
+      if (this.resizeHandler) {
+        this.scale.off('resize', this.resizeHandler);
+        this.resizeHandler = null;
+      }
     };
 
     this.events.once('shutdown', cleanup);
@@ -41,15 +46,9 @@ export class MainScene extends Phaser.Scene {
     window.dispatchEvent(new CustomEvent('phaser-scene-change', { detail: { scene: 'MainScene' } }));
     const { width, height } = this.scale;
 
-    // --- enforces: "Always start with music and fullscreen" (Best Effort) ---
-    // 1. Try Fullscreen (Will fail if triggered remotely due to browser policy, but works for local clicks)
-    if (!this.scale.isFullscreen) {
-      this.scale.startFullscreen();
-    }
-
-    // 2. Force Audio Resume & Context
-    if ((this.sound as Phaser.Sound.WebAudioSoundManager).context.state === 'suspended') {
-      (this.sound as Phaser.Sound.WebAudioSoundManager).context.resume();
+    const soundManager = this.sound as unknown as { context?: AudioContext };
+    if (soundManager.context?.state === 'suspended') {
+      soundManager.context.resume().catch(() => { });
     }
 
     // ... rest of the layers ...
@@ -206,18 +205,28 @@ export class MainScene extends Phaser.Scene {
   }
 
   private setupCollisions() {
-    this.physics.add.collider(this.apples, this.ground, (obj1: any, obj2: any) => {
-      const apple = (obj1 === this.ground) ? obj2 : obj1;
+    this.physics.add.collider(this.apples, this.ground, (obj1: unknown, obj2: unknown) => {
+      const resolved1 =
+        obj1 && typeof obj1 === 'object' && 'gameObject' in obj1
+          ? (obj1 as { gameObject?: unknown }).gameObject ?? obj1
+          : obj1;
+      const resolved2 =
+        obj2 && typeof obj2 === 'object' && 'gameObject' in obj2
+          ? (obj2 as { gameObject?: unknown }).gameObject ?? obj2
+          : obj2;
+
+      const apple = ((resolved1 === this.ground) ? resolved2 : resolved1) as Phaser.Physics.Arcade.Sprite;
       if (apple.getData('landed')) return;
 
       audioManager.playThudSound();
       apple.setData('landed', true);
 
       if (apple.body) {
-        apple.body.velocity.set(0, 0);
-        apple.body.angularVelocity = 0;
-        apple.body.stop();
-        apple.body.enable = false;
+        const body = apple.body as Phaser.Physics.Arcade.Body;
+        body.velocity.set(0, 0);
+        body.angularVelocity = 0;
+        body.stop();
+        body.enable = false;
       }
 
       this.tweens.add({
@@ -231,7 +240,17 @@ export class MainScene extends Phaser.Scene {
   }
 
   private setupResizeListener() {
-    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+    if (this.resizeHandler) {
+      this.scale.off('resize', this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
+    this.resizeHandler = (gameSize: Phaser.Structs.Size) => {
+      if (!this.scene.isActive('MainScene')) return;
+      if (!this.ground || !this.tree || !this.crosshair || !this.backBtnContainer || !this.apples) return;
+      const applesGroup = this.apples as unknown as { children?: unknown };
+      if (!applesGroup.children) return;
+
       const { width, height } = gameSize;
 
       // Actualizar suelo
@@ -262,10 +281,13 @@ export class MainScene extends Phaser.Scene {
       }
 
       // Limpiar manzanas viejas para evitar "fantmas" al redimensionar
-      this.apples.getChildren().forEach((apple: any) => {
+      this.apples.getChildren().forEach((child: Phaser.GameObjects.GameObject) => {
+        const apple = child as Phaser.Physics.Arcade.Sprite;
         if (apple.getData('landed')) apple.destroy();
       });
-    });
+    };
+
+    this.scale.on('resize', this.resizeHandler);
   }
 
   private spawnApple() {
@@ -303,7 +325,7 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
-  private moveCloud(cloud: any) {
+  private moveCloud(cloud: Phaser.GameObjects.Sprite) {
     // Nubes más abajo para no estorbar la UI superior (SAFE ZONE)
     cloud.y = Phaser.Math.Between(120, 250);
     this.tweens.add({
