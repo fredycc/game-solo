@@ -1,6 +1,7 @@
 import { audioManager } from '../AudioManager';
 import { connectionManager } from '../ConnectionManager';
 import { RemoteCursor } from '../RemoteCursor';
+import { GameButton } from '../ui/GameButton';
 
 /**
  * MainScene Refactor: Lógica centralizada y clara.
@@ -126,31 +127,22 @@ export class MainScene extends Phaser.Scene {
 
   private createBackButton(width: number) {
     // SAFE AREA: Margen superior para evitar cortes en TV/Navegadores
-    this.backBtnContainer = this.add.container(width - 110, 80);
-    const bg = this.add.image(0, 0, 'back_btn').setInteractive({ useHandCursor: true });
-    const text = this.add.text(15, -2, 'INICIO', {
-      fontFamily: 'Arial Black',
-      fontSize: '22px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4
-    }).setOrigin(0.5);
+    const x = width - 110;
+    const y = 80;
 
-    this.backBtnContainer.add([bg, text]);
-
-    bg.on('pointerover', () => {
-      this.backBtnContainer.setScale(1.1);
-      bg.setTint(0xfffb00);
-    });
-
-    bg.on('pointerout', () => {
-      this.backBtnContainer.setScale(1);
-      bg.clearTint();
-    });
-
-    bg.on('pointerdown', () => {
-      this.sound.stopAll();
-      this.scene.start('IntroScene');
+    this.backBtnContainer = new GameButton(this, {
+      x,
+      y,
+      width: 150,
+      height: 50,
+      text: 'INICIO',
+      textConfig: {
+        fontSize: '22px'
+      },
+      onClick: () => {
+        this.sound.stopAll();
+        this.scene.start('IntroScene');
+      }
     });
   }
 

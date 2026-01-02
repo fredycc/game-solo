@@ -3,8 +3,8 @@ import tree from './tree.svg?url';
 import cloud from './cloud.svg?url';
 import crosshair from './crosshair.svg?url';
 import vite from './vite.svg?url';
-import back_btn from './back_btn.svg?url';
-import game_btn from './game_btn.svg?url';
+import ui_btn_base from './ui_btn_base.svg?url';
+import ui_btn_border from './ui_btn_border.svg?url';
 
 export const Assets = {
     apple,
@@ -12,6 +12,6 @@ export const Assets = {
     cloud,
     crosshair,
     vite,
-    back_btn,
-    game_btn
+    ui_btn_base,
+    ui_btn_border
 };

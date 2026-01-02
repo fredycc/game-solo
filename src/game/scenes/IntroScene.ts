@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { RemoteCursor } from '../RemoteCursor';
+import { GameButton } from '../ui/GameButton';
 
 /**
  * IntroScene Refactor: Menú de selección de juegos y gestión de inicio (Audio/Fullscreen).
@@ -77,7 +78,7 @@ export class IntroScene extends Phaser.Scene {
 
   private createHeader(width: number, y: number) {
     this.add.text(width / 2, y, 'GAMES', {
-      fontFamily: 'Arial Black',
+      fontFamily: 'Fredoka',
       fontSize: '80px',
       color: '#ffffff',
       stroke: '#000000',
@@ -86,38 +87,23 @@ export class IntroScene extends Phaser.Scene {
   }
 
   private createGameButton(x: number, y: number, label: number | string, sceneKey: string) {
-    const container = this.add.container(x, y);
-    const bg = this.add.image(0, 0, 'game_btn').setInteractive({ useHandCursor: true });
-
-    const text = this.add.text(0, -5, label.toString(), {
-      fontFamily: 'Arial Black',
-      fontSize: '36px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 6,
-      align: 'center'
-    }).setOrigin(0.5);
-
-    container.add([bg, text]);
-
-    // Efectos de Feedback
-    bg.on('pointerover', () => {
-      container.setScale(1.05);
-      bg.setTint(0xbbdefb);
-    });
-
-    bg.on('pointerout', () => {
-      container.setScale(1);
-      bg.clearTint();
-    });
-
     // Acción de inicio
     const startGame = () => {
       this.sound.stopAll();
       this.scene.start(sceneKey);
     };
 
-    bg.on('pointerdown', startGame);
+    new GameButton(this, {
+      x,
+      y,
+      width: 500,
+      height: 120,
+      text: label.toString(),
+      textConfig: {
+        fontSize: '48px'
+      },
+      onClick: startGame
+    });
 
     // Soporte para tecla Enter si solo hay un juego o es el seleccionado
     if (this.input.keyboard) {
@@ -127,7 +113,7 @@ export class IntroScene extends Phaser.Scene {
 
   private createFooterInstructions(width: number, y: number) {
     const startText = this.add.text(width / 2, y, 'Press ENTER or Click to Play', {
-      fontFamily: 'Arial',
+      fontFamily: 'Fredoka',
       fontSize: '28px',
       color: '#ffffff',
       stroke: '#000000',

@@ -1,9 +1,10 @@
-import intro_1 from './intro_1.mp3?url';
+import main_intro_mp3 from './main_intro.mp3?url';
+import main_intro_m4a from './main_intro.m4a?url';
 import music_1 from './music_1.mp3?url';
 import music_2 from './music_2.mp3?url';
 
 export const AudioAssets = {
-    intro_1,
+    intro: [main_intro_mp3, main_intro_m4a],
     music_1,
     music_2
 };

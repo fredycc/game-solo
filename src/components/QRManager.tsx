@@ -79,7 +79,7 @@ export const QRManager = () => {
             boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
             zIndex: 2000,
             color: '#333',
-            fontFamily: 'Arial, sans-serif',
+            fontFamily: 'Fredoka, sans-serif',
             pointerEvents: 'auto',
             backdropFilter: 'blur(5px)',
             border: '2px solid rgba(255, 255, 255, 0.5)'

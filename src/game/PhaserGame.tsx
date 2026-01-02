@@ -111,7 +111,7 @@ export const PhaserGame = () => {
             justifyContent: 'center',
             background: '#87CEEB',
             color: '#1a1a1a',
-            fontFamily: 'Arial Black, sans-serif',
+            fontFamily: "Fredoka, sans-serif",
             userSelect: 'none'
           }}
         >
@@ -123,17 +123,60 @@ export const PhaserGame = () => {
               setStarted(true);
             }}
             style={{
-              padding: '18px 26px',
-              borderRadius: '18px',
+              position: 'relative',
+              padding: '0',
+              width: '500px',
+              height: '120px',
               border: 'none',
-              background: '#FFD700',
-              color: '#1a1a1a',
-              fontSize: '20px',
-              fontWeight: 900,
-              cursor: 'pointer'
+              background: 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            TOCA PARA INICIAR
+            {/* Cuerpo Amarillo */}
+            <div style={{
+              position: 'absolute',
+              top: '0',
+              left: '0',
+              width: '100%',
+              height: '110px',
+              borderRadius: '30px',
+              backgroundColor: '#FFB703',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {/* Borde Punteado */}
+              <div style={{
+                position: 'absolute',
+                top: '10px',
+                left: '10px',
+                right: '10px',
+                bottom: '10px',
+                border: '4px dashed white',
+                borderRadius: '20px',
+                pointerEvents: 'none'
+              }} />
+
+              <span style={{
+                fontFamily: "Fredoka, sans-serif",
+                fontSize: '44px',
+                fontWeight: '700',
+                color: '#FFFFFF',
+                letterSpacing: '2px', // Añadido espaciado entre letras
+                // Usamos text-shadow más fino (2px en lugar de 3px)
+                textShadow: `
+                  -2px -2px 0 #000,
+                   2px -2px 0 #000,
+                  -2px  2px 0 #000,
+                   2px  2px 0 #000,
+                   0px  4px 0px rgba(0,0,0,0.2)
+                `,
+                zIndex: 1
+              }}>TOCA PARA INICIAR</span>
+            </div>
           </button>
         </div>
       )}

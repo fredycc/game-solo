@@ -117,7 +117,7 @@ export const Controller = () => {
             userSelect: 'none',
             touchAction: 'none',
             overflow: 'hidden',
-            fontFamily: 'Arial Black, sans-serif'
+            fontFamily: 'Fredoka, sans-serif'
         }}>
             {/* Header */}
             <div style={{ padding: '15px', background: '#4CAF50', borderBottom: '5px solid #388E3C', borderRadius: '0 0 20px 20px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
@@ -166,17 +166,27 @@ export const Controller = () => {
                         width: '100%',
                         height: '100px',
                         borderRadius: '30px',
-                        background: 'linear-gradient(180deg, #FF4B2B 0%, #FF416C 100%)',
-                        border: 'none',
-                        borderBottom: '8px solid #B01E00',
+                        background: '#FFB703',
+                        border: '4px dashed white',
                         color: 'white',
-                        fontSize: '32px',
-                        fontWeight: '900',
-                        textShadow: '3px 3px 0px #B01E00',
+                        fontSize: '38px',
+                        fontWeight: '700',
+                        fontFamily: 'Fredoka, sans-serif',
+                        letterSpacing: '2px',
+                        textShadow: `
+                            -1.5px -1.5px 0 #000,
+                             1.5px -1.5px 0 #000,
+                            -1.5px  1.5px 0 #000,
+                             1.5px  1.5px 0 #000
+                        `,
                         cursor: 'pointer',
                         WebkitTapHighlightColor: 'transparent',
                         transform: 'translateY(0)',
-                        transition: 'all 0.1s'
+                        transition: 'all 0.1s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxSizing: 'border-box'
                     }}
                     onPointerUp={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
                 >

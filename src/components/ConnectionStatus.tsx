@@ -69,7 +69,7 @@ export const ConnectionStatus = () => {
             border: '4px dashed rgba(255, 255, 255, 0.4)',
             borderRadius: '40px',
             color: 'white',
-            fontFamily: 'Arial Black, sans-serif',
+            fontFamily: 'Fredoka, sans-serif',
             fontSize: '14px',
             fontWeight: 'bold',
             boxShadow: '0 6px 0 rgba(0,0,0,0.3), 0 10px 20px rgba(0,0,0,0.2)',
