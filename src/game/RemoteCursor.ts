@@ -7,6 +7,8 @@ export class RemoteCursor {
     private y: number;
     private hoveredObject: Phaser.GameObjects.GameObject | null = null;
     private unsubscribe: (() => void) | null = null;
+    private fadeTween: Phaser.Tweens.Tween | null = null;
+    private idleTimer: Phaser.Time.TimerEvent | null = null;
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
@@ -39,6 +41,26 @@ export class RemoteCursor {
         });
 
         this.setupListeners();
+        this.resetIdleTimer();
+    }
+
+    private resetIdleTimer() {
+        // 1. Show cursor immediately
+        if (this.fadeTween) this.fadeTween.stop();
+        this.cursor.setAlpha(1);
+
+        // 2. Restart timer
+        if (this.idleTimer) this.idleTimer.destroy();
+        this.idleTimer = this.scene.time.delayedCall(3000, () => this.fadeOut());
+    }
+
+    private fadeOut() {
+        this.fadeTween = this.scene.tweens.add({
+            targets: this.cursor,
+            alpha: 0.2,
+            duration: 1000,
+            ease: 'Linear'
+        });
     }
 
     private setupListeners() {
@@ -55,6 +77,7 @@ export class RemoteCursor {
     }
 
     private updatePosition(dx: number, dy: number) {
+        this.resetIdleTimer();
         this.x = Phaser.Math.Clamp(this.x + dx, 0, this.scene.scale.width);
         this.y = Phaser.Math.Clamp(this.y + dy, 0, this.scene.scale.height);
 
@@ -76,6 +99,7 @@ export class RemoteCursor {
     }
 
     private simulateClick() {
+        this.resetIdleTimer();
         // 0. Dispatch global event for audio/fullscreen activation
         window.dispatchEvent(new CustomEvent('remote-interaction'));
 
@@ -118,6 +142,8 @@ export class RemoteCursor {
 
     destroy() {
         this.unsubscribe?.();
+        if (this.idleTimer) this.idleTimer.destroy();
+        if (this.fadeTween) this.fadeTween.remove();
         this.cursor.destroy();
     }
 }
