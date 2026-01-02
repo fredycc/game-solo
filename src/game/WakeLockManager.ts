@@ -4,6 +4,8 @@ export class WakeLockManager {
   private wakeLockTimer: number | null = null;
   private wakeLock: WakeLockSentinel | null = null;
   private isReleasing = false;
+  private audioContext: AudioContext | null = null;
+  private audioInitialized = false;
 
   private readonly videoSource = "data:video/webm;base64,GkXfowEAAAAAAAAfQoaBAUL3gQFC8oEEQvOBCEKChHdlYm1Ch4ECQoWBAhhTgGcBAAAAAAB2BxFNm3RALE27i1OrhBVJqWZTrIHfTbuMU6uEFlSua1OsggEuTbuMU6uEHFO7a1OsgnXq7AEAAAAAAACkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmAQAAAAAAAEMq17GDD0JATYCMTGF2ZjU2LjcuMTAyV0GMTGF2ZjU2LjcuMTAyc6SQgjdo9yCGPKbvRDsqy6e8XUSJiECMwAAAAAAAFlSuawEAAAAAAABDrgEAAAAAAAA614EBc8WBAZyBACK1nIN1bmSGhVZfVlA4g4EBI+ODhAJiWgDgAQAAAAAAAA6wg==";
 
@@ -11,6 +13,37 @@ export class WakeLockManager {
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     this.setupVideoElement();
+    this.initAudioContext();
+  }
+
+  // --- Audio Keep-Alive (Nuevo) ---
+  private initAudioContext() {
+    if (this.audioInitialized) return;
+    
+    try {
+      // @ts-ignore - Soporte legacy
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      this.audioContext = new AudioContextClass();
+      this.audioInitialized = true;
+      
+      // Crear oscilador silencioso para mantener el hardware de audio activo
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 0.01; // Frecuencia inaudible
+      gainNode.gain.value = 0.001; // Volumen casi cero
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+      
+      oscillator.start();
+      console.log('Audio Keep-Alive started');
+    } catch (e) {
+      console.warn('Audio Context failed', e);
+    }
   }
 
   private setupVideoElement() {
@@ -24,15 +57,18 @@ export class WakeLockManager {
         src: this.videoSource
       });
       
+      // OPTIMIZACIÓN NUCLEAR PARA WEBOS:
+      // Video dentro del viewport pero invisible visualmente
+      // Opacidad muy baja (no 0), Z-Index alto pero pointer-events none
       Object.assign(this.videoElement.style, {
-        position: 'absolute',
-        width: '1px',
-        height: '1px',
-        opacity: '0.01',
-        pointerEvents: 'none',
-        zIndex: '-1',
+        position: 'fixed',
         top: '0',
         left: '0',
+        width: '1px',
+        height: '1px',
+        opacity: '0.05', // Opacidad > 0 para que el compositor lo renderice
+        pointerEvents: 'none',
+        zIndex: '-1', // Detrás del contenido pero en viewport
         visibility: 'visible'
       });
 
@@ -130,8 +166,9 @@ export class WakeLockManager {
         // 1. Alterar ligeramente el tiempo para forzar renderizado
         this.videoElement.currentTime = Math.random() * 0.1;
         
-        // 2. Realizar una acción de red "dummy" para engañar al sistema operativo
-        fetch('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==')
+        // 2. Realizar una acción de red REAL para generar tráfico en la tarjeta de red
+        // WebOS ignora data-uris, necesita ver paquetes TCP reales.
+        fetch(`https://clients3.google.com/generate_204?t=${Date.now()}`, { mode: 'no-cors' })
           .catch(() => {});
       }
     }, 15000);

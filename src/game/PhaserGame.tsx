@@ -35,12 +35,10 @@ export const PhaserGame = () => {
     const onUserGesture = () => {
       resumeAudioIfNeeded();
       requestFullscreenIfPossible();
-      wakeLockManager.requestWakeLock();
     };
 
     const onRemoteInteraction = () => {
       resumeAudioIfNeeded();
-      wakeLockManager.requestWakeLock();
     };
 
     window.addEventListener('click', onUserGesture);
@@ -124,6 +122,9 @@ export const PhaserGame = () => {
           <button
             type="button"
             onClick={() => {
+              // 1. Activar WakeLock INMEDIATAMENTE tras el click (User Gesture)
+              wakeLockManager.requestWakeLock();
+              
               requestFullscreen();
               createGameIfNeeded();
               setStarted(true);
