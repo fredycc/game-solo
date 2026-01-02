@@ -57,11 +57,16 @@ export class GameButton extends Phaser.GameObjects.Container {
                 drawRoundedRect(ctx, x, y, width, height, UI_CONFIG.buttonRadius);
                 ctx.fill();
 
-                // 2. Brillos decorativos internos (Simplificados o eliminados según petición)
-                // Brillo superior izquierda
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                // 2. Brillos decorativos internos
+                // Brillo superior derecha (Ajustado para estar dentro del borde dashed)
+                const shinePadding = UI_CONFIG.dashedPadding + 8; // Padding del borde + un extra
+                const shineRadius = Math.min(10, height * 0.1); // Escalar con la altura, max 10px
+                const shineX = width - shinePadding - shineRadius;
+                const shineY = shinePadding + shineRadius;
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; // Un poco más visible
                 ctx.beginPath();
-                ctx.arc(x + 40, y + 25, 10, 0, Math.PI * 2);
+                ctx.arc(shineX, shineY, shineRadius, 0, Math.PI * 2);
                 ctx.fill();
 
                 // 3. Borde decorativo dashed
@@ -88,12 +93,17 @@ export class GameButton extends Phaser.GameObjects.Container {
         this.bg.setInteractive({ useHandCursor: true });
 
         // Texto centralizado
+        // Calcular grosor de borde proporcional (20% del tamaño de fuente) para evitar empaste en textos pequeños
+        const fontSizeRaw = config.textConfig?.fontSize ?? '24px';
+        const fontSize = parseInt(fontSizeRaw.toString());
+        const dynamicStroke = Math.max(3, fontSize * 0.2); // Minimo 3px para legibilidad, ratio 0.2
+
         this.label = scene.add.text(0, 0, config.text, {
             fontFamily: UI_CONFIG.fontFamily,
-            fontSize: config.textConfig?.fontSize ?? '24px',
+            fontSize: fontSizeRaw,
             color: config.textConfig?.color ?? UI_CONFIG.fontColor,
             stroke: config.textConfig?.stroke ?? UI_CONFIG.strokeColor,
-            strokeThickness: config.textConfig?.strokeThickness ?? UI_CONFIG.strokeThickness,
+            strokeThickness: config.textConfig?.strokeThickness ?? dynamicStroke,
             align: 'center',
             fontStyle: '700', // Forzamos negrita para igualar al botón inicial
             padding: { top: 5, bottom: 5 }
@@ -132,8 +142,6 @@ export class GameButton extends Phaser.GameObjects.Container {
 
         scene.add.existing(this);
     }
-
-
     setText(text: string) {
         this.label.setText(text);
     }
