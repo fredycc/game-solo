@@ -41,15 +41,18 @@ export const PhaserGame = () => {
       }
       window.removeEventListener('click', resumeAudio);
       window.removeEventListener('keydown', resumeAudio);
+      window.removeEventListener('remote-interaction', resumeAudio);
     };
 
     window.addEventListener('click', resumeAudio);
     window.addEventListener('keydown', resumeAudio);
+    window.addEventListener('remote-interaction', resumeAudio);
 
     return () => {
       if (gameRef.current) {
         window.removeEventListener('click', resumeAudio);
         window.removeEventListener('keydown', resumeAudio);
+        window.removeEventListener('remote-interaction', resumeAudio);
         gameRef.current.destroy(true);
         gameRef.current = null;
       }

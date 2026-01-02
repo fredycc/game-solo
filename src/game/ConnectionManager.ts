@@ -12,7 +12,7 @@ class ConnectionManager {
     private gameId: string = '';
     private state: ConnectionState = 'disconnected';
     private stateListeners: Set<(state: ConnectionState) => void> = new Set();
-    private onEvent: (event: any) => void = () => { };
+    private eventListeners: Set<(event: any) => void> = new Set();
     private isInitializing: boolean = false;
 
     constructor() {
@@ -32,7 +32,10 @@ class ConnectionManager {
     }
 
     subscribeEvents(callback: (event: any) => void) {
-        this.onEvent = callback;
+        this.eventListeners.add(callback);
+        return () => {
+            this.eventListeners.delete(callback);
+        };
     }
 
     async connect(serverUrl: string) {
@@ -47,7 +50,7 @@ class ConnectionManager {
             });
 
             this.socket.on('game-event', (event) => {
-                this.onEvent(event);
+                this.emitEvent(event);
             });
 
             const url = new URL(serverUrl);
@@ -74,7 +77,7 @@ class ConnectionManager {
                     console.log('PC: P2P OK');
                     this.updateState('connected');
                 });
-                this.conn.on('data', (data: any) => this.onEvent(data));
+                this.conn.on('data', (data: any) => this.emitEvent(data));
             });
 
             this.socket.on('player-joined', () => {
@@ -91,6 +94,10 @@ class ConnectionManager {
     private updateState(state: ConnectionState) {
         this.state = state;
         this.stateListeners.forEach(cb => cb(state));
+    }
+
+    private emitEvent(event: any) {
+        this.eventListeners.forEach(cb => cb(event));
     }
 
     async connectAsController(serverUrl: string, gameId: string) {

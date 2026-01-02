@@ -1,5 +1,6 @@
 import { audioManager } from '../AudioManager';
 import { connectionManager } from '../ConnectionManager';
+import { RemoteCursor } from '../RemoteCursor';
 
 /**
  * MainScene Refactor: Lógica centralizada y clara.
@@ -7,6 +8,8 @@ import { connectionManager } from '../ConnectionManager';
  */
 export class MainScene extends Phaser.Scene {
   // Miembros de clase
+  private remoteCursor!: RemoteCursor;
+  private eventUnsubscribe: (() => void) | null = null;
   private tree!: Phaser.GameObjects.Container;
   private apples!: Phaser.Physics.Arcade.Group;
   private ground!: Phaser.GameObjects.Rectangle;
@@ -24,27 +27,34 @@ export class MainScene extends Phaser.Scene {
   }
 
   create() {
+    this.remoteCursor = new RemoteCursor(this);
+
+    // Cleanup helper
+    const cleanup = () => {
+      this.remoteCursor.destroy();
+      this.eventUnsubscribe?.();
+    };
+
+    this.events.once('shutdown', cleanup);
+    this.events.once('destroy', cleanup);
+
     window.dispatchEvent(new CustomEvent('phaser-scene-change', { detail: { scene: 'MainScene' } }));
     const { width, height } = this.scale;
 
-    // 1. Capas base
+    // ... rest of the layers ...
     this.add.rectangle(0, 0, width, height, 0x87CEEB).setOrigin(0);
     this.createGround(width, height);
     this.createClouds(width);
 
-    // 2. Elementos del juego
+    // ... elements ...
     this.createTree(width, height);
     this.createApplesGroup();
     this.createCrosshair(width, height);
     this.createBackButton(width);
 
-    // 3. Sistema de entrada
+    // ... system ...
     this.setupInput();
-
-    // 4. Colisiones
     this.setupCollisions();
-
-    // 5. Gestión de ventana
     this.setupResizeListener();
 
     // 6. Audio inicial
@@ -52,7 +62,7 @@ export class MainScene extends Phaser.Scene {
     this.sound.play('game_music', { loop: true, volume: 0.4 });
 
     // 7. Eventos de Control Remoto (Pro)
-    connectionManager.subscribeEvents((event) => {
+    this.eventUnsubscribe = connectionManager.subscribeEvents((event) => {
       // Validar que la escena esté activa antes de procesar eventos
       if (!this.scene.isActive('MainScene')) return;
 

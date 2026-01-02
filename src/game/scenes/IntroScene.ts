@@ -1,14 +1,20 @@
 import * as Phaser from 'phaser';
+import { RemoteCursor } from '../RemoteCursor';
 
 /**
  * IntroScene Refactor: Menú de selección de juegos y gestión de inicio (Audio/Fullscreen).
  */
 export class IntroScene extends Phaser.Scene {
+  private remoteCursor!: RemoteCursor;
+
   constructor() {
     super('IntroScene');
   }
 
   create() {
+    this.remoteCursor = new RemoteCursor(this);
+    this.events.once('shutdown', () => this.remoteCursor.destroy());
+    this.events.once('destroy', () => this.remoteCursor.destroy());
     window.dispatchEvent(new CustomEvent('phaser-scene-change', { detail: { scene: 'IntroScene' } }));
     const { width, height } = this.scale;
 
@@ -50,12 +56,14 @@ export class IntroScene extends Phaser.Scene {
 
       // Limpiar escuchadores una vez activado
       this.input.off('pointerdown', onFirstInteraction);
+      window.removeEventListener('remote-interaction', onFirstInteraction);
       if (this.input.keyboard) {
         this.input.keyboard.off('keydown', onFirstInteraction);
       }
     };
 
     this.input.on('pointerdown', onFirstInteraction);
+    window.addEventListener('remote-interaction', onFirstInteraction);
     if (this.input.keyboard) {
       this.input.keyboard.on('keydown', onFirstInteraction);
     }
