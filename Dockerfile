@@ -8,6 +8,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependencias
+# Actualizar npm a la última versión para evitar avisos de "New major version available"
+RUN npm install -g npm@latest
+
 # Usamos npm ci para una instalación limpia y determinista más rápida
 RUN npm ci
 
