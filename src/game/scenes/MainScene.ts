@@ -110,13 +110,6 @@ export class MainScene extends Phaser.Scene {
     this.tree.setSize(200, 300);
 
     this.startTreeAnimation(width);
-
-    // Sonido ambiental del árbol
-    this.time.addEvent({
-      delay: 3000,
-      loop: true,
-      callback: () => audioManager.playMoveSound()
-    });
   }
 
   private createApplesGroup() {
