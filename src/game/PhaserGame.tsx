@@ -3,6 +3,7 @@ import * as Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { IntroScene } from './scenes/IntroScene';
 import { MainScene } from './scenes/MainScene';
+import { connectionManager } from './ConnectionManager';
 
 export const PhaserGame = () => {
   const gameRef = useRef<any>(null);
@@ -48,11 +49,18 @@ export const PhaserGame = () => {
     window.addEventListener('keydown', resumeAudio);
     window.addEventListener('remote-interaction', resumeAudio);
 
+    const handleUnload = () => {
+      connectionManager.disconnect();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
     return () => {
       if (gameRef.current) {
         window.removeEventListener('click', resumeAudio);
         window.removeEventListener('keydown', resumeAudio);
         window.removeEventListener('remote-interaction', resumeAudio);
+        window.removeEventListener('beforeunload', handleUnload);
+        handleUnload();
         gameRef.current.destroy(true);
         gameRef.current = null;
       }

@@ -82,8 +82,10 @@ io.on('connection', (socket) => {
 
     socket.on('game-event', (data) => {
         const { gameId, event } = data;
-        console.log(`[EVENT] from ${socket.id} to Room ${gameId}:`, event);
-        socket.to(gameId).emit('game-event', event);
+        if (sessions.has(gameId)) {
+            console.log(`[EVENT] from ${socket.id} to Room ${gameId}:`, event);
+            socket.to(gameId).emit('game-event', event);
+        }
     });
 
     socket.on('disconnect', () => {

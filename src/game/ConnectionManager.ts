@@ -112,6 +112,11 @@ class ConnectionManager {
             this.updateState('connected');
         });
 
+        this.socket.on('host-disconnected', () => {
+            console.log('[Controller] Host disconnected.');
+            this.disconnect();
+        });
+
         const url = new URL(serverUrl);
         const isSecure = url.protocol === 'https:';
 
@@ -142,6 +147,23 @@ class ConnectionManager {
         });
 
         this.isInitializing = false;
+    }
+
+    disconnect() {
+        if (this.conn) {
+            this.conn.close();
+            this.conn = null;
+        }
+        if (this.peer) {
+            this.peer.destroy();
+            this.peer = null;
+        }
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+        }
+        this.updateState('disconnected');
+        console.log('[ConnectionManager] Disconnected and cleaned up.');
     }
 
     getConnectionType(): 'P2P' | 'SERVER' | 'NONE' {
