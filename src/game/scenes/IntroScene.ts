@@ -85,14 +85,14 @@ export class IntroScene extends Phaser.Scene {
     this.tweens.add({
       targets: title,
       scale: 1,
-      duration: 1000,
+      duration: 800, // Más rápido para sentirlo más ágil
       ease: 'Back.easeOut',
       onComplete: () => {
         // Una vez que termina el zoom in, añadimos un pequeño efecto de pulso/balanceo
         this.tweens.add({
           targets: title,
-          scale: 1.05,
-          duration: 2000,
+          scale: 1.08, // Un poco más de escala para que se note más el movimiento
+          duration: 1500, // Un poco más rápido para evitar sensación de lentitud
           yoyo: true,
           repeat: -1,
           ease: 'Sine.easeInOut'
