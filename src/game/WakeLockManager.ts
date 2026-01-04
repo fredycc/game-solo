@@ -1,144 +1,168 @@
+/**
+ * WakeLockManager - Mantener pantalla activa en TVs Smart
+ * Optimizado para LG OLED y navegadores basados en Chromium
+ * 
+ * Estrategia:
+ * 1. Screen Wake Lock API (nativa, eficiente)
+ * 2. Video fallback silencioso (para WebOS)
+ * 3. Reactivación en visibility change
+ */
+
 export class WakeLockManager {
   private videoElement: HTMLVideoElement | null = null;
   private isVideoPlaying = false;
-  private wakeLockTimer: number | null = null;
+  private wakeLockRefreshTimer: number | null = null;
   private wakeLock: WakeLockSentinel | null = null;
   private isReleasing = false;
-  private audioContext: AudioContext | null = null;
-  private audioInitialized = false;
+  private hasVisibilityListener = false;
 
+  // Video base64 mínimo (1ms vacío, ~300 bytes)
   private readonly videoSource = "data:video/webm;base64,GkXfowEAAAAAAAAfQoaBAUL3gQFC8oEEQvOBCEKChHdlYm1Ch4ECQoWBAhhTgGcBAAAAAAB2BxFNm3RALE27i1OrhBVJqWZTrIHfTbuMU6uEFlSua1OsggEuTbuMU6uEHFO7a1OsgnXq7AEAAAAAAACkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmAQAAAAAAAEMq17GDD0JATYCMTGF2ZjU2LjcuMTAyV0GMTGF2ZjU2LjcuMTAyc6SQgjdo9yCGPKbvRDsqy6e8XUSJiECMwAAAAAAAFlSuawEAAAAAAABDrgEAAAAAAAA614EBc8WBAZyBACK1nIN1bmSGhVZfVlA4g4EBI+ODhAJiWgDgAQAAAAAAAA6wg==";
 
   constructor() {
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    this.setupVideoElement();
-    this.initAudioContext();
+    this.init();
   }
 
-  // --- Audio Keep-Alive (Nuevo) ---
-  private initAudioContext() {
-    if (this.audioInitialized) return;
-    
-    try {
-      // @ts-ignore - Soporte legacy
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-
-      this.audioContext = new AudioContextClass();
-      this.audioInitialized = true;
-      
-      // Crear oscilador silencioso para mantener el hardware de audio activo
-      const oscillator = this.audioContext.createOscillator();
-      const gainNode = this.audioContext.createGain();
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.value = 0.01; // Frecuencia inaudible
-      gainNode.gain.value = 0.001; // Volumen casi cero
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
-      
-      oscillator.start();
-      console.log('Audio Keep-Alive started');
-    } catch (e) {
-      console.warn('Audio Context failed', e);
+  private init() {
+    if (!this.hasVisibilityListener) {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      this.hasVisibilityListener = true;
     }
+    this.setupVideoElement();
   }
 
+  /**
+   * Configura elemento video oculto para mantener sesión activa
+   */
   private setupVideoElement() {
+    if (this.videoElement) return;
+
     try {
       this.videoElement = document.createElement('video');
-      Object.assign(this.videoElement, {
-        playsInline: true,
-        loop: true,
-        muted: true,
-        preload: 'auto',
-        src: this.videoSource
-      });
       
-      // OPTIMIZACIÓN NUCLEAR PARA WEBOS (Píxel Camaleón):
-      // Video visible pero mezclado con el fondo para ser imperceptible
+      // Configuración del video
+      this.videoElement.src = this.videoSource;
+      this.videoElement.muted = true;
+      this.videoElement.loop = true;
+      this.videoElement.playsInline = true;
+      this.videoElement.preload = 'auto';
+
+      // Estilo: Oculto completamente, fuera del flujo de documento
       Object.assign(this.videoElement.style, {
         position: 'fixed',
-        top: '0',
-        left: '0',
-        width: '4px',    // Un poco más grande para forzar el rasterizado
-        height: '4px',
-        opacity: '0.9',  // Opacidad alta (casi sólido)
-        zIndex: '9999',  // Al frente de todo
+        bottom: '-9999px',      // Fuera del viewport
+        left: '-9999px',
+        width: '1px',
+        height: '1px',
         pointerEvents: 'none',
-        // Filtro para que el píxel sea casi invisible al ojo humano
-        // pero "real" para el procesador de imagen de la TV
-        mixBlendMode: 'difference',
-        filter: 'brightness(0.1)',
-        visibility: 'visible'
+        zIndex: '-9999',
+        visibility: 'hidden'
       });
 
-      // Detección de interferencia del sistema
+      // Reactivar si el video se pausa (interferencia del sistema)
       this.videoElement.addEventListener('pause', () => {
         if (!this.isReleasing && document.visibilityState === 'visible') {
-          console.warn('WebOS screensaver interference detected');
+          console.warn('[WakeLock] Video pausado por sistema, reintentando...');
           setTimeout(() => this.startVideoFallback(), 1000);
         }
       });
 
       document.body.appendChild(this.videoElement);
-    } catch (e) {
-      console.warn('Failed to setup video element', e);
+      console.log('[WakeLock] Video element initialized');
+    } catch (error) {
+      console.warn('[WakeLock] Failed to setup video element:', error);
     }
   }
 
-  private async handleVisibilityChange() {
+  /**
+   * Maneja cambios de visibilidad del tab/ventana
+   */
+  private handleVisibilityChange() {
     if (document.visibilityState === 'visible') {
-      await this.requestWakeLock();
+      console.log('[WakeLock] Document became visible, reacquiring...');
+      this.requestWakeLock();
+    } else {
+      console.log('[WakeLock] Document hidden');
+      this.clearRefreshTimer();
     }
   }
 
+  /**
+   * Solicita Screen Wake Lock API con timeout
+   */
   public async requestWakeLock() {
-    // Intentar Wake Lock API con timeout
-    if (!this.wakeLock && 'wakeLock' in navigator) {
-      const wakeLockPromise = navigator.wakeLock.request('screen')
-        .catch(() => null);
-      const timeoutPromise = new Promise<null>(resolve => 
-        setTimeout(() => resolve(null), 1000)
-      );
-      
-      this.wakeLock = await Promise.race([wakeLockPromise, timeoutPromise]);
-      
-      if (this.wakeLock) {
-        this.wakeLock.addEventListener('release', () => {
-          if (!this.isReleasing) {
-            this.wakeLock = null;
-            setTimeout(() => this.requestWakeLock(), 1000);
-          }
-        });
+    // Asegurar que estamos inicializados (útil si se llamó a cleanup previamente)
+    this.init();
+
+    // 1. Intentar Screen Wake Lock API nativa (recomendado)
+    if ('wakeLock' in navigator && !this.wakeLock) {
+      try {
+        const wakeLockPromise = navigator.wakeLock.request('screen');
+        
+        // Timeout de 1s en caso de que el navegador cuelgue
+        const timeoutPromise = new Promise<null>(resolve =>
+          setTimeout(() => resolve(null), 1000)
+        );
+
+        this.wakeLock = await Promise.race([wakeLockPromise, timeoutPromise]) as WakeLockSentinel | null;
+
+        if (this.wakeLock) {
+          console.log('[WakeLock] Screen Wake Lock API activo');
+
+          // Reacquire si el sistema lo libera
+          this.wakeLock.addEventListener('release', () => {
+            if (!this.isReleasing) {
+              console.warn('[WakeLock] Wake Lock liberado automáticamente');
+              this.wakeLock = null;
+              setTimeout(() => this.requestWakeLock(), 500);
+            }
+          });
+        } else {
+          console.warn('[WakeLock] Screen Wake Lock API timeout o no disponible');
+        }
+      } catch (error) {
+        console.warn('[WakeLock] Screen Wake Lock API error:', error);
+        this.wakeLock = null;
       }
     }
 
-    // Siempre activar video fallback en WebOS
+    // 2. Fallback: Video silencioso en WebOS/navegadores antiguos
     this.startVideoFallback();
   }
 
+  /**
+   * Inicia reproducción de video como fallback
+   */
   private startVideoFallback() {
-    if (!this.videoElement || this.isVideoPlaying) return;
+    if (!this.videoElement) {
+      this.setupVideoElement();
+    }
+    
+    if (!this.videoElement || this.isVideoPlaying) {
+      return;
+    }
 
     const attemptPlay = async () => {
       try {
         await this.videoElement!.play();
         this.isVideoPlaying = true;
+        console.log('[WakeLock] Video fallback started');
+
+        // Timer para refrescar periódicamente
         this.startRefreshTimer();
-        
-        // Verificar estado después de 1 min
-        setTimeout(() => {
-          if (this.videoElement?.paused) {
-            console.warn('Video stopped, retrying...');
+
+        // Verificar cada minuto si el video sigue reproduciéndose
+        const checkInterval = setTimeout(() => {
+          if (this.videoElement?.paused && !this.isReleasing) {
+            console.warn('[WakeLock] Video se pausó, reintentando...');
             this.isVideoPlaying = false;
+            clearTimeout(checkInterval);
             this.startVideoFallback();
           }
         }, 60000);
-      } catch (err) {
-        console.error('Video play failed:', err);
+      } catch (error) {
+        console.error('[WakeLock] Video play failed:', error);
         this.isVideoPlaying = false;
       }
     };
@@ -146,58 +170,91 @@ export class WakeLockManager {
     attemptPlay();
   }
 
+  /**
+   * Timer para refrescar el wake lock periódicamente
+   * Solo reintenta reproducir video si está parado
+   */
   private startRefreshTimer() {
-    if (this.wakeLockTimer) clearInterval(this.wakeLockTimer);
-    
-    // Killer Fix: Simular Teclas (Input Inyectado) cada 60s
-    // Si nada de lo anterior funciona, esto resetea el timer de inactividad por fuerza bruta
-    this.wakeLockTimer = window.setInterval(() => {
-       // 1. Reset Video Loop
-       if (this.videoElement && this.isVideoPlaying) {
-          this.videoElement.play().catch(() => {});
-       }
+    this.clearRefreshTimer();
 
-       // 2. Input Injection
-       try {
-           const event = new KeyboardEvent('keydown', {
-               key: 'Shift',
-               code: 'ShiftLeft',
-               keyCode: 16,
-               charCode: 0,
-               bubbles: true
-           });
-           window.dispatchEvent(event);
-       } catch { /* ignore */ }
-    }, 60000);
+    // Refrescar cada 30 segundos (intervalo seguro para TVs)
+    this.wakeLockRefreshTimer = window.setInterval(() => {
+      if (this.videoElement && !this.videoElement.paused) {
+        // Video sigue reproduciéndose, todo bien
+        return;
+      }
+
+      if (!this.isReleasing && this.isVideoPlaying) {
+        // Video se pausó, reintentarlo
+        console.log('[WakeLock] Refreshing video...');
+        this.videoElement?.play().catch(() => {
+          // Silenciosamente fallar si no se puede reproducir
+        });
+      }
+    }, 30000);
   }
 
+  /**
+   * Limpia el timer de refresh
+   */
+  private clearRefreshTimer() {
+    if (this.wakeLockRefreshTimer) {
+      clearInterval(this.wakeLockRefreshTimer);
+      this.wakeLockRefreshTimer = null;
+    }
+  }
+
+  /**
+   * Libera todos los recursos de wake lock
+   */
   public async releaseWakeLock() {
     this.isReleasing = true;
-    
+
+    // Liberar Screen Wake Lock API
     if (this.wakeLock) {
-      try { await this.wakeLock.release(); } catch {}
+      try {
+        await this.wakeLock.release();
+        console.log('[WakeLock] Screen Wake Lock released');
+      } catch (error) {
+        console.warn('[WakeLock] Error releasing wake lock:', error);
+      }
       this.wakeLock = null;
     }
-    
+
+    // Pausar video
     if (this.videoElement) {
-      try { this.videoElement.pause(); } catch {}
-      this.isVideoPlaying = false;
+      try {
+        this.videoElement.pause();
+        this.isVideoPlaying = false;
+        console.log('[WakeLock] Video stopped');
+      } catch (error) {
+        console.warn('[WakeLock] Error pausing video:', error);
+      }
     }
-    
-    if (this.wakeLockTimer) {
-      clearInterval(this.wakeLockTimer);
-      this.wakeLockTimer = null;
-    }
-    
+
+    // Limpiar timer
+    this.clearRefreshTimer();
     this.isReleasing = false;
   }
 
+  /**
+   * Limpieza completa: eliminar el manager
+   */
   public cleanup() {
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    if (this.hasVisibilityListener) {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+      this.hasVisibilityListener = false;
+    }
     this.releaseWakeLock();
-    this.videoElement?.remove();
-    this.videoElement = null;
+    
+    if (this.videoElement) {
+      this.videoElement.remove();
+      this.videoElement = null;
+    }
+
+    console.log('[WakeLock] Manager cleaned up');
   }
 }
 
+// Singleton exportado
 export const wakeLockManager = new WakeLockManager();
