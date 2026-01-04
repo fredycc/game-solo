@@ -5,7 +5,6 @@ import { IntroScene } from './scenes/IntroScene';
 import { GameLoadingScene } from './scenes/GameLoadingScene';
 import { MainScene } from './scenes/MainScene';
 import { connectionManager } from './ConnectionManager';
-import { wakeLockManager } from './WakeLockManager';
 
 export const PhaserGame = () => {
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -47,7 +46,6 @@ export const PhaserGame = () => {
 
     const handleUnload = () => {
       connectionManager.disconnect();
-      wakeLockManager.releaseWakeLock();
     };
     window.addEventListener('beforeunload', handleUnload);
 
@@ -58,7 +56,6 @@ export const PhaserGame = () => {
         window.removeEventListener('remote-interaction', onRemoteInteraction);
         window.removeEventListener('beforeunload', handleUnload);
         handleUnload();
-        wakeLockManager.cleanup();
         gameRef.current.destroy(true);
         gameRef.current = null;
       }
@@ -122,9 +119,6 @@ export const PhaserGame = () => {
           <button
             type="button"
             onClick={() => {
-              // 1. Activar WakeLock INMEDIATAMENTE tras el click (User Gesture)
-              wakeLockManager.requestWakeLock();
-              
               requestFullscreen();
               createGameIfNeeded();
               setStarted(true);
