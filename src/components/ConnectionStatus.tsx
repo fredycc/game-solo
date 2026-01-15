@@ -41,6 +41,7 @@ export const ConnectionStatus = () => {
     const getLightColor = () => {
         switch (state) {
             case 'connected': return '#4CAF50'; // Green
+            case 'hosting': return '#2196F3'; // Blue
             case 'signaling': return '#FFC107'; // Yellow/Orange
             case 'disconnected': return '#F44336'; // Red
             default: return '#F44336';
@@ -49,7 +50,8 @@ export const ConnectionStatus = () => {
 
     const getStatusText = () => {
         switch (state) {
-            case 'connected': return 'CONNECTED';
+            case 'connected': return 'P2P CONNECTED';
+            case 'hosting': return 'WAITING FOR CONTROLLER';
             case 'signaling': return 'CONNECTING...';
             case 'disconnected': return 'DISCONNECTED';
             default: return 'DISCONNECTED';

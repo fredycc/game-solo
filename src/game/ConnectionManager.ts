@@ -28,7 +28,7 @@ const isGameEvent = (value: unknown): value is GameEvent => {
     return false;
 };
 
-export type ConnectionState = 'disconnected' | 'signaling' | 'connected';
+export type ConnectionState = 'disconnected' | 'signaling' | 'hosting' | 'connected';
 
 class ConnectionManager {
     private socket: Socket | null = null;
@@ -72,6 +72,7 @@ class ConnectionManager {
             this.socket = io(serverUrl);
             this.socket.on('connect', () => {
                 this.socket?.emit('host-game', this.gameId);
+                this.updateState('hosting');
             });
 
             this.socket.on('game-event', (event: unknown) => {
@@ -108,7 +109,9 @@ class ConnectionManager {
             });
 
             this.socket.on('player-joined', () => {
-                if (this.state === 'signaling') this.updateState('connected');
+                if (this.state === 'signaling' || this.state === 'hosting') {
+                    this.updateState('connected');
+                }
             });
 
         } catch {
