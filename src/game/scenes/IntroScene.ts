@@ -7,6 +7,7 @@ import { GameButton } from '../ui/GameButton';
  */
 export class IntroScene extends Phaser.Scene {
   private remoteCursor!: RemoteCursor;
+  private onFirstUserGesture!: () => void;
 
   constructor() {
     super('IntroScene');
@@ -14,8 +15,20 @@ export class IntroScene extends Phaser.Scene {
 
   create() {
     this.remoteCursor = new RemoteCursor(this);
-    this.events.once('shutdown', () => this.remoteCursor.destroy());
-    this.events.once('destroy', () => this.remoteCursor.destroy());
+    this.events.once('shutdown', () => {
+      this.remoteCursor.destroy();
+      this.input.off('pointerdown', this.onFirstUserGesture);
+      if (this.input.keyboard) {
+        this.input.keyboard.off('keydown', this.onFirstUserGesture);
+      }
+    });
+    this.events.once('destroy', () => {
+      this.remoteCursor.destroy();
+      this.input.off('pointerdown', this.onFirstUserGesture);
+      if (this.input.keyboard) {
+        this.input.keyboard.off('keydown', this.onFirstUserGesture);
+      }
+    });
     window.dispatchEvent(new CustomEvent('phaser-scene-change', { detail: { scene: 'IntroScene' } }));
     const { width, height } = this.scale;
 
@@ -61,18 +74,18 @@ export class IntroScene extends Phaser.Scene {
       }
     };
 
-    const onFirstUserGesture = () => {
+    this.onFirstUserGesture = () => {
       startIntroMusic();
 
-      this.input.off('pointerdown', onFirstUserGesture);
+      this.input.off('pointerdown', this.onFirstUserGesture);
       if (this.input.keyboard) {
-        this.input.keyboard.off('keydown', onFirstUserGesture);
+        this.input.keyboard.off('keydown', this.onFirstUserGesture);
       }
     };
 
-    this.input.on('pointerdown', onFirstUserGesture);
+    this.input.on('pointerdown', this.onFirstUserGesture);
     if (this.input.keyboard) {
-      this.input.keyboard.on('keydown', onFirstUserGesture);
+      this.input.keyboard.on('keydown', this.onFirstUserGesture);
     }
   }
 
