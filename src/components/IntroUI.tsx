@@ -67,6 +67,7 @@ export const IntroUI = ({ onStart }: IntroUIProps) => {
                 style={{
                     pointerEvents: 'auto', // Reactivar eventos para el botón
                     backgroundColor: isHovered ? '#4CAF50' : '#FFB703',
+                    opacity: 1, // Ensure fully opaque
                     padding: '15px 40px',
                     borderRadius: '20px',
                     border: '4px solid white',
@@ -76,10 +77,11 @@ export const IntroUI = ({ onStart }: IntroUIProps) => {
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     textShadow: '2px 2px 0px black', // Borde negro en texto
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                    boxShadow: '0 6px 12px rgba(0,0,0,0.4)', // Stronger shadow for depth
                     transition: 'all 0.2s ease',
                     transform: isHovered ? 'scale(1.1)' : 'scale(1)', // Efecto hover scale
-                    ...(!isHovered ? pulseStyle : {}) // Aplicar pulso solo si no está en hover (o siempre, según preferencia. El usuario pidió "mantener la animación... como pulso")
+                    zIndex: 100, // Ensure it sits on top of everything
+                    ...(!isHovered ? pulseStyle : {}) // Aplicar pulso solo si no está en hover
                 }}
             >
                 START GAME

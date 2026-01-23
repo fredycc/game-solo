@@ -50,19 +50,25 @@ export const RemotePointer = () => {
         const clientY = (1 - ndcY) * size.height / 2;
 
         // 1. Intentar interactuar con UI HTML PRIMERO (Prioridad Alta)
-        const element = document.elementFromPoint(clientX, clientY);
+        const elements = document.elementsFromPoint(clientX, clientY);
 
-        if (element instanceof HTMLElement) {
-            const isCanvas = element.tagName === 'CANVAS';
+        for (const element of elements) {
+            if (element instanceof HTMLElement) {
+                const isCanvas = element.tagName === 'CANVAS';
 
-            // Si NO es el canvas, asumimos que es un elemento de UI (Overlay)
-            // El cursor propio tiene pointerEvents: 'none', así que no debería bloquear.
-            if (!isCanvas) {
-                const options = { bubbles: true, cancelable: true, view: window, clientX, clientY };
-                element.dispatchEvent(new MouseEvent('mousedown', options));
-                element.dispatchEvent(new MouseEvent('mouseup', options));
-                element.dispatchEvent(new MouseEvent('click', options));
-                return;
+
+                // Check if element is interactive or is our button
+                const isClickable = element.tagName === 'BUTTON' || element.onclick || element.getAttribute('role') === 'button' || element.style.cursor === 'pointer' || window.getComputedStyle(element).cursor === 'pointer';
+
+                // Si encontramos un elemento interactivo que NO es el canvas, le damos click
+                if (!isCanvas && isClickable) {
+                    const options = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+                    // Send full sequence
+                    element.dispatchEvent(new MouseEvent('mousedown', options));
+                    element.dispatchEvent(new MouseEvent('mouseup', options));
+                    element.dispatchEvent(new MouseEvent('click', options));
+                    return; // Stop after clicking the top-most interactive element
+                }
             }
         }
 
