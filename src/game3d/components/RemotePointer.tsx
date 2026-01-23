@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { connectionManager } from '../../services/ConnectionManager';
 import * as THREE from 'three';
 
@@ -8,7 +9,9 @@ export const RemotePointer = () => {
     const [pointer, setPointer] = useState({ x: 0, y: 0 }); // Viewport coordinates (-width/2 to width/2)
     const [visible, setVisible] = useState(false);
     const lastMoveTime = useRef(Date.now());
-    const pointerRef = useRef<THREE.Group>(null);
+
+    // We don't need a ref for the group anymore since we are using Html
+    // But we might want to keep the position logic clean.
 
     useEffect(() => {
         const unsubscribe = connectionManager.subscribeEvents((event) => {
@@ -16,10 +19,7 @@ export const RemotePointer = () => {
                 setVisible(true);
                 lastMoveTime.current = Date.now();
 
-                // dy/dx from phone are typically pixels or relative. 
-                // We'll treat them as a percentage of the screen for consistency or just scale them.
-                // Let's assume dx/dy are roughly pixel-scale or sensitivity based.
-                const sensitivity = 0.02; // Adjust based on phone feeling
+                const sensitivity = 0.02;
 
                 setPointer(prev => ({
                     x: THREE.MathUtils.clamp(prev.x + event.dx * sensitivity, -viewport.width / 2, viewport.width / 2),
@@ -50,22 +50,18 @@ export const RemotePointer = () => {
         const clientY = (1 - ndcY) * size.height / 2;
 
         // 1. Intentar interactuar con UI HTML PRIMERO (Prioridad Alta)
-        // Usamos elementFromPoint para ver qué hay en esa posición
         const element = document.elementFromPoint(clientX, clientY);
 
         if (element instanceof HTMLElement) {
-            // Verificar si el elemento es interactuable (boton, input, o tiene cursor pointer)
-            // Ojo: elementFromPoint podría devolver el canvas mismo. Debemos ignorar el canvas.
             const isCanvas = element.tagName === 'CANVAS';
 
             // Si NO es el canvas, asumimos que es un elemento de UI (Overlay)
+            // El cursor propio tiene pointerEvents: 'none', así que no debería bloquear.
             if (!isCanvas) {
                 const options = { bubbles: true, cancelable: true, view: window, clientX, clientY };
                 element.dispatchEvent(new MouseEvent('mousedown', options));
                 element.dispatchEvent(new MouseEvent('mouseup', options));
                 element.dispatchEvent(new MouseEvent('click', options));
-
-                // Si interactuamos con UI, NO propagar al mundo 3D
                 return;
             }
         }
@@ -100,10 +96,6 @@ export const RemotePointer = () => {
     };
 
     useFrame(() => {
-        if (pointerRef.current) {
-            pointerRef.current.position.set(pointer.x, pointer.y, 5); // Slightly in front
-        }
-
         // Auto-hide after 5 seconds of inactivity
         if (visible && Date.now() - lastMoveTime.current > 5000) {
             setVisible(false);
@@ -113,21 +105,55 @@ export const RemotePointer = () => {
     if (!visible) return null;
 
     return (
-        <group ref={pointerRef}>
-            {/* Visual for the remote cursor */}
-            <mesh raycast={() => null}>
-                <circleGeometry args={[0.2, 32]} />
-                <meshBasicMaterial color="#FFD700" transparent opacity={0.8} depthTest={false} />
-            </mesh>
-            <mesh position={[0, 0, 0.01]} raycast={() => null}>
-                <ringGeometry args={[0.2, 0.25, 32]} />
-                <meshBasicMaterial color="#FF8C00" depthTest={false} />
-            </mesh>
-            {/* Pulsing effect */}
-            <mesh scale={1.5} raycast={() => null}>
-                <circleGeometry args={[0.25, 32]} />
-                <meshBasicMaterial color="#FFFF00" transparent opacity={0.2} depthTest={false} />
-            </mesh>
-        </group>
+        <Html
+            position={[pointer.x, pointer.y, 0]} // Center at Z=0? Or 5? Since it's overlay, 0 is fine if we ignore depth.
+            // Actually, if we use default zIndexRange with Html, it might get occluded by 3D objects if we are not careful.
+            // But we want it ON TOP of everything.
+            style={{
+                pointerEvents: 'none', // Crucial: lets clicks pass through
+                zIndex: 9999, // Crucial: puts it above all other UI
+                transform: 'translate3d(-50%, -50%, 0)', // Center the div on the coordinate
+            }}
+            zIndexRange={[9999, 9999]} // Force it to be always on top in R3F sorting too
+
+        >
+            <div style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+            }}>
+                {/* Visual for the remote cursor - CSS version */}
+                <div style={{
+                    position: 'absolute',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(255, 215, 0, 0.8)', // Gold
+                    boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+                    border: '2px solid rgba(255, 140, 0, 1)' // Dark Orange
+                }} />
+
+                {/* Pulsing effect */}
+                <div style={{
+                    position: 'absolute',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(255, 255, 0, 0.2)',
+                    animation: 'pulse 1.5s infinite'
+                }} />
+
+                <style>{`
+                    @keyframes pulse {
+                        0% { transform: scale(1); opacity: 0.2; }
+                        50% { transform: scale(1.2); opacity: 0.1; }
+                        100% { transform: scale(1); opacity: 0.2; }
+                    }
+                `}</style>
+            </div>
+        </Html>
     );
 };
