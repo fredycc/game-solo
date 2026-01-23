@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { connectionManager } from '../game/ConnectionManager';
+import { connectionManager } from '../services/ConnectionManager';
 
 export const QRManager = () => {
     const [gameId] = useState(() => connectionManager.getGameId());

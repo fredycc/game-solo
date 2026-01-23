@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { connectionManager } from '../game/ConnectionManager';
-import type { ConnectionState } from '../game/ConnectionManager';
+import { connectionManager } from '../services/ConnectionManager';
+import type { ConnectionState } from '../services/ConnectionManager';
 
 export const ConnectionStatus = () => {
     const [state, setState] = useState<ConnectionState>('disconnected');

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
-import { connectionManager } from '../../game/ConnectionManager';
+import { connectionManager } from '../../services/ConnectionManager';
 import * as THREE from 'three';
 
 export const RemotePointer = () => {

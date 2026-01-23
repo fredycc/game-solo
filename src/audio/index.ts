@@ -8,3 +8,7 @@ export const AudioAssets = {
     music_1,
     music_2
 };
+
+// Exportar managers y configuración de audio
+export { AudioEffectsManager, audioEffectsManager } from './AudioManager';
+export { AudioConfig } from './AudioConfig';

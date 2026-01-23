@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Tree } from '../components/Tree';
 import { Apple } from '../components/Apple';
 import { Crosshair } from '../components/Crosshair';
-import { connectionManager } from '../../game/ConnectionManager';
+import { connectionManager } from '../../services/ConnectionManager';
 
 import * as THREE from 'three';
 

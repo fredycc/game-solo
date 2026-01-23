@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { AudioAssets } from '../../audio';
+import { AudioAssets, AudioConfig } from '../../audio';
+
 
 interface BackgroundMusicProps {
     mode: 'intro' | 'game';
@@ -9,8 +10,8 @@ interface BackgroundMusicProps {
  * Singleton de audio global - asegura que solo una instancia de audio existe
  * Previene múltiples audios reproduciéndose simultáneamente
  */
-class AudioManager {
-    private static instance: AudioManager;
+class BackgroundAudioManager {
+    private static instance: BackgroundAudioManager;
     private audio: HTMLAudioElement | null = null;
     private currentMode: 'intro' | 'game' | null = null;
     private isPlaying: boolean = false;
@@ -20,11 +21,11 @@ class AudioManager {
 
     private constructor() { }
 
-    static getInstance(): AudioManager {
-        if (!AudioManager.instance) {
-            AudioManager.instance = new AudioManager();
+    static getInstance(): BackgroundAudioManager {
+        if (!BackgroundAudioManager.instance) {
+            BackgroundAudioManager.instance = new BackgroundAudioManager();
         }
-        return AudioManager.instance;
+        return BackgroundAudioManager.instance;
     }
 
     /**
@@ -64,8 +65,9 @@ class AudioManager {
      * Cambia al modo especificado (intro o game)
      */
     switchMode(mode: 'intro' | 'game') {
-        // Si ya está en el modo correcto y reproduciendo, no hacer nada
-        if (this.currentMode === mode && this.audio && this.isPlaying) {
+        // Si ya está en el modo correcto (con o sin reproducción), no hacer nada
+        // Esto previene recrear el audio cuando React.StrictMode ejecuta el efecto dos veces
+        if (this.currentMode === mode && this.audio) {
             return;
         }
 
@@ -80,7 +82,9 @@ class AudioManager {
         // Crear nuevo audio
         this.audio = new Audio(trackUrl);
         this.audio.loop = true;
-        this.audio.volume = mode === 'intro' ? 0.5 : 0.4;
+        this.audio.volume = mode === 'intro'
+            ? AudioConfig.volumes.music.intro
+            : AudioConfig.volumes.music.game;
         this.audio.preload = 'auto';
         this.currentMode = mode;
 
@@ -109,8 +113,8 @@ class AudioManager {
                     this.setupInteractionListener();
                 }
                 // Reintentar con delay si no está listo
-                else if (retryCount < 3) {
-                    const delay = 100 * Math.pow(2, retryCount);
+                else if (retryCount < AudioConfig.playback.maxRetries) {
+                    const delay = AudioConfig.playback.retryDelayBase * Math.pow(2, retryCount);
                     setTimeout(() => this.attemptPlay(retryCount + 1), delay);
                 }
             });
@@ -199,7 +203,7 @@ class AudioManager {
  */
 export const BackgroundMusic = ({ mode }: BackgroundMusicProps) => {
     useEffect(() => {
-        const manager = AudioManager.getInstance();
+        const manager = BackgroundAudioManager.getInstance();
         manager.switchMode(mode);
 
         // Cleanup al desmontar - pero NO detener el audio
