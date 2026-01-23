@@ -1,7 +1,7 @@
 import { Text, Float, useTexture } from '@react-three/drei';
 import { useState, useEffect } from 'react';
 import { Assets } from '../../assets/images';
-import { AudioAssets } from '../../audio';
+
 
 
 interface IntroScene3DProps {
@@ -16,52 +16,7 @@ export const IntroScene3D = ({ onStart }: IntroScene3DProps) => {
     const titleTexture = useTexture(Assets.intro_game_opt);
 
     useEffect(() => {
-        // Initialize Audio
-        const audioUrl = Array.isArray(AudioAssets.intro) ? AudioAssets.intro[0] : AudioAssets.intro;
-        const audio = new Audio(audioUrl);
-        audio.loop = true;
-        audio.volume = 0.5;
-
-        let isMounted = true;
-
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                audio.pause();
-            } else if (isMounted) {
-                audio.play().catch(() => { });
-            }
-        };
-
-        const resumeAudio = () => {
-            if (audio.paused) {
-                audio.play().catch(console.error);
-            }
-            window.removeEventListener('click', resumeAudio);
-            window.removeEventListener('keydown', resumeAudio);
-        };
-
-        const playAudio = async () => {
-            try {
-                await audio.play();
-            } catch (err) {
-                if (isMounted) {
-                    window.addEventListener('click', resumeAudio);
-                    window.addEventListener('keydown', resumeAudio);
-                }
-            }
-        };
-
-        playAudio();
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        return () => {
-            isMounted = false;
-            audio.pause();
-            audio.currentTime = 0;
-            window.removeEventListener('click', resumeAudio);
-            window.removeEventListener('keydown', resumeAudio);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
+        // No local audio management here anymore
     }, []);
 
     return (

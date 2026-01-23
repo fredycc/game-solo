@@ -4,6 +4,8 @@ import { lazy, Suspense, useState } from 'react';
 const IntroScene3D = lazy(() => import('./scenes/IntroScene3D').then(module => ({ default: module.IntroScene3D })));
 const MainScene3D = lazy(() => import('./scenes/MainScene3D').then(module => ({ default: module.MainScene3D })));
 import { Loader } from '@react-three/drei';
+import { RemotePointer } from './components/RemotePointer';
+import { BackgroundMusic } from './components/BackgroundMusic';
 
 export const GameCanvas = () => {
     // Simple state machine: 'intro' | 'game'
@@ -35,7 +37,10 @@ export const GameCanvas = () => {
                             <MainScene3D onBack={() => setGameState('intro')} />
                         </Physics>
                     )}
+
+                    <RemotePointer />
                 </Suspense>
+                <BackgroundMusic mode={gameState} />
             </Canvas>
 
             {/* Global UI Overlay (Standard HTML) */}

@@ -4,7 +4,7 @@ import { Tree } from '../components/Tree';
 import { Apple } from '../components/Apple';
 import { Crosshair } from '../components/Crosshair';
 import { connectionManager } from '../../game/ConnectionManager';
-import { AudioAssets } from '../../audio';
+
 import * as THREE from 'three';
 
 interface MainScene3DProps {
@@ -15,43 +15,6 @@ export const MainScene3D = ({ }: MainScene3DProps) => {
     const [apples, setApples] = useState<{ id: string; position: [number, number, number] }[]>([]);
 
     useEffect(() => {
-        // Initialize Game Music
-        const music = new Audio(AudioAssets.music_1);
-        music.loop = true;
-        music.volume = 0.4;
-
-        let isMounted = true;
-
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                music.pause();
-            } else if (isMounted) {
-                music.play().catch(() => { });
-            }
-        };
-
-        const resumeMusic = () => {
-            if (music.paused) {
-                music.play().catch(console.error);
-            }
-            window.removeEventListener('click', resumeMusic);
-            window.removeEventListener('keydown', resumeMusic);
-        };
-
-        const playMusic = async () => {
-            try {
-                await music.play();
-            } catch (err) {
-                if (isMounted) {
-                    window.addEventListener('click', resumeMusic);
-                    window.addEventListener('keydown', resumeMusic);
-                }
-            }
-        };
-
-        playMusic();
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
         const unsubscribe = connectionManager.subscribeEvents((event) => {
             if (event.type === 'action' && event.action === 'DROP') {
                 // Spawn apple at a default position (e.g., from the tree) if remote triggered
@@ -60,12 +23,6 @@ export const MainScene3D = ({ }: MainScene3DProps) => {
         });
 
         return () => {
-            isMounted = false;
-            music.pause();
-            music.currentTime = 0;
-            window.removeEventListener('click', resumeMusic);
-            window.removeEventListener('keydown', resumeMusic);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
             unsubscribe();
         };
     }, []);
