@@ -45,7 +45,32 @@ export const RemotePointer = () => {
         const ndcX = (pointer.x / (viewport.width / 2));
         const ndcY = (pointer.y / (viewport.height / 2));
 
-        // 1. Raycast for 3D objects
+        // Coordenadas de pantalla para HTML
+        const clientX = (ndcX + 1) * size.width / 2;
+        const clientY = (1 - ndcY) * size.height / 2;
+
+        // 1. Intentar interactuar con UI HTML PRIMERO (Prioridad Alta)
+        // Usamos elementFromPoint para ver qué hay en esa posición
+        const element = document.elementFromPoint(clientX, clientY);
+
+        if (element instanceof HTMLElement) {
+            // Verificar si el elemento es interactuable (boton, input, o tiene cursor pointer)
+            // Ojo: elementFromPoint podría devolver el canvas mismo. Debemos ignorar el canvas.
+            const isCanvas = element.tagName === 'CANVAS';
+
+            // Si NO es el canvas, asumimos que es un elemento de UI (Overlay)
+            if (!isCanvas) {
+                const options = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+                element.dispatchEvent(new MouseEvent('mousedown', options));
+                element.dispatchEvent(new MouseEvent('mouseup', options));
+                element.dispatchEvent(new MouseEvent('click', options));
+
+                // Si interactuamos con UI, NO propagar al mundo 3D
+                return;
+            }
+        }
+
+        // 2. Si no hubo interacción HTML, probar Raycast 3D
         raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
         const intersects = raycaster.intersectObjects(scene.children, true);
 
@@ -71,18 +96,6 @@ export const RemotePointer = () => {
                     current = current.parent;
                 }
             }
-        }
-
-        // 2. Click for HTML UI elements (Home Button, etc.)
-        const clientX = (ndcX + 1) * size.width / 2;
-        const clientY = (1 - ndcY) * size.height / 2;
-
-        const element = document.elementFromPoint(clientX, clientY);
-        if (element instanceof HTMLElement) {
-            const options = { bubbles: true, cancelable: true, view: window, clientX, clientY };
-            element.dispatchEvent(new MouseEvent('mousedown', options));
-            element.dispatchEvent(new MouseEvent('mouseup', options));
-            element.dispatchEvent(new MouseEvent('click', options));
         }
     };
 

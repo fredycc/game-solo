@@ -1,11 +1,11 @@
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { lazy, Suspense, useState } from 'react';
-const IntroScene3D = lazy(() => import('./scenes/IntroScene3D').then(module => ({ default: module.IntroScene3D })));
 const MainScene3D = lazy(() => import('./scenes/MainScene3D').then(module => ({ default: module.MainScene3D })));
 import { Loader } from '@react-three/drei';
 import { RemotePointer } from './components/RemotePointer';
 import { BackgroundMusic } from './components/BackgroundMusic';
+import { IntroUI } from '../components/IntroUI';
 
 export const GameCanvas = () => {
     // Simple state machine: 'intro' | 'game'
@@ -13,6 +13,11 @@ export const GameCanvas = () => {
 
     return (
         <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+            {/* Intro UI Overlay (2D HTML) */}
+            {gameState === 'intro' && (
+                <IntroUI onStart={() => setGameState('game')} />
+            )}
+
             <Canvas
                 shadows
                 camera={{ position: [0, 5, 10], fov: 50 }}
@@ -27,10 +32,6 @@ export const GameCanvas = () => {
                         castShadow
                         shadow-mapSize={[1024, 1024]}
                     />
-
-                    {gameState === 'intro' && (
-                        <IntroScene3D onStart={() => setGameState('game')} />
-                    )}
 
                     {gameState === 'game' && (
                         <Physics gravity={[0, -9.81, 0]}>
