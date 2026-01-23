@@ -9,8 +9,14 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          phaser: ['phaser'],
-          vendor: ['react', 'react-dom']
+          // Motor 3D y React básico
+          'three-core': ['three', '@react-three/fiber', '@react-three/drei'],
+          // Motor de Física (pesado)
+          'physics': ['@react-three/rapier'],
+          // Comunicación y Utilidades
+          'comms': ['socket.io-client', 'peerjs', 'qrcode.react'],
+          // Framework base
+          'vendor': ['react', 'react-dom']
         }
       }
     }
