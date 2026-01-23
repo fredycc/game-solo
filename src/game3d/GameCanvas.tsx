@@ -40,8 +40,9 @@ export const GameCanvas = () => {
 
                     <RemotePointer />
                 </Suspense>
-                <BackgroundMusic mode={gameState} />
             </Canvas>
+
+            <BackgroundMusic mode={gameState} />
 
             {/* Global UI Overlay (Standard HTML) */}
             {gameState === 'game' && (
