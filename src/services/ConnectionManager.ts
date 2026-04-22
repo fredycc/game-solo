@@ -167,7 +167,7 @@ class ConnectionManager {
 
         this.peer.on('open', () => {
             const connection = this.peer!.connect(`host-${gameId}`, {
-                reliable: true
+                reliable: false
             }) as unknown as DataConnection;
 
             connection.on('open', () => {

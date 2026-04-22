@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
 import { useThree, useFrame, invalidate } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import { connectionManager } from '../../services/ConnectionManager';
 import * as THREE from 'three';
 
@@ -25,7 +24,6 @@ import * as THREE from 'three';
  */
 export const RemotePointer = () => {
     const { camera, raycaster, scene, size, viewport } = useThree();
-    const pointerRef = useRef({ x: 0, y: 0 });
     const groupRef = useRef<THREE.Group>(null);
     const [visible, setVisible] = useState(false);
     // Ref mirror of visible — avoids stale closures without extra re-renders
@@ -34,6 +32,9 @@ export const RemotePointer = () => {
     // Latest viewport/size available in callbacks without re-subscribing
     const viewportRef = useRef(viewport);
     const sizeRef = useRef(size);
+    
+    // Vector to store target position for interpolation
+    const targetRef = useRef(new THREE.Vector3(0, 0, 0));
     
     // Reusable vectors to avoid GC pressure
     const vector3 = useRef(new THREE.Vector3());
@@ -61,25 +62,20 @@ export const RemotePointer = () => {
 
                 const vp = viewportRef.current;
                 const sensitivity = 0.02;
-                const newX = THREE.MathUtils.clamp(
-                    pointerRef.current.x + event.dx * sensitivity,
+                
+                // Update target position
+                targetRef.current.x = THREE.MathUtils.clamp(
+                    targetRef.current.x + event.dx * sensitivity,
                     -vp.width / 2,
                     vp.width / 2,
                 );
-                const newY = THREE.MathUtils.clamp(
-                    pointerRef.current.y - event.dy * sensitivity,
+                targetRef.current.y = THREE.MathUtils.clamp(
+                    targetRef.current.y - event.dy * sensitivity,
                     -vp.height / 2,
                     vp.height / 2,
                 );
 
-                pointerRef.current.x = newX;
-                pointerRef.current.y = newY;
-
-                if (groupRef.current) {
-                    groupRef.current.position.set(newX, newY, 0);
-                }
-                
-                // Manually request a frame in demand mode
+                // In demand mode, we need to invalidate to trigger the useFrame loop
                 invalidate();
             } else if (event.type === 'action' && event.action === 'TAP_CLICK') {
                 handleRemoteClickRef.current();
@@ -103,8 +99,10 @@ export const RemotePointer = () => {
     const handleRemoteClick = () => {
         const sz = sizeRef.current;
 
-        // Use the same projection as the camera to get NDC
-        const vector = vector3.current.set(pointerRef.current.x, pointerRef.current.y, 0);
+        // Use the current group position for the click (interpolated)
+        if (!groupRef.current) return;
+        const vector = vector3.current.copy(groupRef.current.position);
+        
         vector.project(camera);
         const ndcX = vector.x;
         const ndcY = vector.y;
@@ -143,7 +141,7 @@ export const RemotePointer = () => {
             }
         }
 
-        // Fallback: Direct query by bounding rect (still useful for pointerEvents:none containers)
+        // Fallback: Direct query by bounding rect
         const remoteClickables = document.querySelectorAll<HTMLElement>('[data-remote-clickable="true"]');
         for (const el of remoteClickables) {
             const rect = el.getBoundingClientRect();
@@ -198,60 +196,81 @@ export const RemotePointer = () => {
         handleRemoteClickRef.current = handleRemoteClick;
     });
 
-    useFrame(() => {
+    useFrame((_state, delta) => {
+        if (!groupRef.current) return;
+
+        // Interpolation logic
+        const smoothing = 0.15; // Lower = smoother but more lag. Higher = snappier.
+        const weight = 1 - Math.pow(smoothing, delta * 60);
+        
+        groupRef.current.position.lerp(targetRef.current, weight);
+
+        // Auto-hide after inactivity
         if (visibleRef.current && Date.now() - lastMoveTime.current > 5000) {
             visibleRef.current = false;
             setVisible(false);
+        }
+
+        // In demand mode, if we are still moving, keep invalidating
+        if (visibleRef.current && groupRef.current.position.distanceTo(targetRef.current) > 0.001) {
+            invalidate();
         }
     });
 
     if (!visible) return null;
 
     return (
-        <group ref={groupRef}>
-            <Html
-                position={[0, 0, 0]}
-                style={{
-                    pointerEvents: 'none',
-                    zIndex: 9999,
-                    transform: 'translate3d(-50%, -50%, 0)',
-                }}
-                zIndexRange={[9999, 9999]}
-            >
-                <div style={{
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '40px',
-                    height: '40px',
-                }}>
-                    <div style={{
-                        position: 'absolute',
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '50%',
-                        backgroundColor: 'rgba(255, 215, 0, 0.8)',
-                        boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
-                        border: '2px solid rgba(255, 140, 0, 1)',
-                    }} />
-                    <div style={{
-                        position: 'absolute',
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        backgroundColor: 'rgba(255, 255, 0, 0.2)',
-                        animation: 'rp-pulse 1.5s infinite',
-                    }} />
-                    <style>{`
-                        @keyframes rp-pulse {
-                            0%   { transform: scale(1);   opacity: 0.2; }
-                            50%  { transform: scale(1.2); opacity: 0.1; }
-                            100% { transform: scale(1);   opacity: 0.2; }
-                        }
-                    `}</style>
-                </div>
-            </Html>
+        <group ref={groupRef} renderOrder={9999}>
+            {/* Main yellow dot */}
+            <mesh scale={[0.15, 0.15, 0.15]}>
+                <circleGeometry args={[1, 32]} />
+                <meshBasicMaterial 
+                    color="#FFD700" 
+                    transparent 
+                    opacity={0.8} 
+                    depthTest={false}
+                />
+            </mesh>
+            
+            {/* Border ring */}
+            <mesh scale={[0.15, 0.15, 0.15]}>
+                <ringGeometry args={[0.9, 1, 32]} />
+                <meshBasicMaterial 
+                    color="#FF8C00" 
+                    transparent 
+                    opacity={1} 
+                    depthTest={false}
+                />
+            </mesh>
+
+            {/* Pulsing outer ring */}
+            <PulseAnimation />
         </group>
     );
 };
+
+/** Separate component for the pulsing animation to avoid per-frame logic in main pointer */
+const PulseAnimation = () => {
+    const meshRef = useRef<THREE.Mesh>(null);
+    useFrame(({ clock }) => {
+        if (meshRef.current) {
+            const scale = 1 + Math.sin(clock.elapsedTime * 4) * 0.2;
+            meshRef.current.scale.set(scale, scale, 1);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const mat = meshRef.current.material as any;
+            mat.opacity = 0.3 * (1 - (scale - 0.8) / 0.4);
+        }
+    });
+    return (
+        <mesh ref={meshRef} scale={[0.2, 0.2, 0.2]}>
+            <ringGeometry args={[0.8, 1, 32]} />
+            <meshBasicMaterial 
+                color="#FFFF00" 
+                transparent 
+                opacity={0.3} 
+                depthTest={false}
+            />
+        </mesh>
+    );
+};
+

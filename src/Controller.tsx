@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { connectionManager } from './services/ConnectionManager';
 import type { ConnectionState } from './services/ConnectionManager';
 
@@ -36,6 +36,8 @@ export const Controller = () => {
     const [touchStartPos, setTouchStartPos] = useState<{ x: number, y: number } | null>(null);
     const [lastTouch, setLastTouch] = useState<{ x: number, y: number } | null>(null);
     const [isMoving, setIsMoving] = useState(false);
+    const lastSendTime = useRef(0);
+
 
     const sendAction = (action: string) => {
         connectionManager.sendEvent({ type: 'action', action });
@@ -60,7 +62,11 @@ export const Controller = () => {
             }
 
             if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-                connectionManager.sendEvent({ type: 'move', dx: dx * 2.5, dy: dy * 2.5 });
+                const now = Date.now();
+                if (now - lastSendTime.current > 16) { // ~60fps throttle
+                    connectionManager.sendEvent({ type: 'move', dx: dx * 2.5, dy: dy * 2.5 });
+                    lastSendTime.current = now;
+                }
             }
         }
         setLastTouch({ x: touch.clientX, y: touch.clientY });
