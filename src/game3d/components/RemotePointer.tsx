@@ -6,7 +6,8 @@ import * as THREE from 'three';
 
 export const RemotePointer = () => {
     const { camera, raycaster, scene, size, viewport } = useThree();
-    const [pointer, setPointer] = useState({ x: 0, y: 0 }); // Viewport coordinates (-width/2 to width/2)
+    const pointerRef = useRef({ x: 0, y: 0 }); // Viewport coordinates (-width/2 to width/2)
+    const groupRef = useRef<THREE.Group>(null);
     const [visible, setVisible] = useState(false);
     const lastMoveTime = useRef(Date.now());
 
@@ -20,11 +21,15 @@ export const RemotePointer = () => {
                 lastMoveTime.current = Date.now();
 
                 const sensitivity = 0.02;
+                const newX = THREE.MathUtils.clamp(pointerRef.current.x + event.dx * sensitivity, -viewport.width / 2, viewport.width / 2);
+                const newY = THREE.MathUtils.clamp(pointerRef.current.y - event.dy * sensitivity, -viewport.height / 2, viewport.height / 2);
+                
+                pointerRef.current.x = newX;
+                pointerRef.current.y = newY;
 
-                setPointer(prev => ({
-                    x: THREE.MathUtils.clamp(prev.x + event.dx * sensitivity, -viewport.width / 2, viewport.width / 2),
-                    y: THREE.MathUtils.clamp(prev.y - event.dy * sensitivity, -viewport.height / 2, viewport.height / 2)
-                }));
+                if (groupRef.current) {
+                    groupRef.current.position.set(newX, newY, 0);
+                }
             } else if (event.type === 'action' && event.action === 'TAP_CLICK') {
                 handleRemoteClick();
             }
@@ -42,8 +47,8 @@ export const RemotePointer = () => {
     }, [viewport, size]);
 
     const handleRemoteClick = () => {
-        const ndcX = (pointer.x / (viewport.width / 2));
-        const ndcY = (pointer.y / (viewport.height / 2));
+        const ndcX = (pointerRef.current.x / (viewport.width / 2));
+        const ndcY = (pointerRef.current.y / (viewport.height / 2));
 
         // Coordenadas de pantalla para HTML
         const clientX = (ndcX + 1) * size.width / 2;
@@ -111,8 +116,9 @@ export const RemotePointer = () => {
     if (!visible) return null;
 
     return (
-        <Html
-            position={[pointer.x, pointer.y, 0]} // Center at Z=0? Or 5? Since it's overlay, 0 is fine if we ignore depth.
+        <group ref={groupRef} position={[pointerRef.current.x, pointerRef.current.y, 0]}>
+            <Html
+                position={[0, 0, 0]} 
             // Actually, if we use default zIndexRange with Html, it might get occluded by 3D objects if we are not careful.
             // But we want it ON TOP of everything.
             style={{
@@ -160,6 +166,7 @@ export const RemotePointer = () => {
                     }
                 `}</style>
             </div>
-        </Html>
+            </Html>
+        </group>
     );
 };

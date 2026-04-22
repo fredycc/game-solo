@@ -2,7 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
 import { lazy, Suspense, useState } from 'react';
 const MainScene3D = lazy(() => import('./scenes/MainScene3D').then(module => ({ default: module.MainScene3D })));
-import { Loader } from '@react-three/drei';
+import { Loader, AdaptiveDpr } from '@react-three/drei';
 import { RemotePointer } from './components/RemotePointer';
 import { BackgroundMusic } from './components/BackgroundMusic';
 import { IntroUI } from '../components/IntroUI';
@@ -20,17 +20,20 @@ export const GameCanvas = () => {
 
             <Canvas
                 shadows
+                dpr={[1, 1.5]}
+                gl={{ powerPreference: 'high-performance' }}
                 camera={{ position: [0, 5, 10], fov: 50 }}
                 style={{ width: '100vw', height: '100vh', background: '#87CEEB' }}
                 onCreated={({ camera }) => camera.lookAt(0, 0, 0)}
             >
+                <AdaptiveDpr pixelated />
                 <Suspense fallback={null}>
                     <ambientLight intensity={0.5} />
                     <directionalLight
                         position={[10, 10, 5]}
                         intensity={1}
                         castShadow
-                        shadow-mapSize={[1024, 1024]}
+                        shadow-mapSize={[512, 512]}
                     />
 
                     {gameState === 'game' && (

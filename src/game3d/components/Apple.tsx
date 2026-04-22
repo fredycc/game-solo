@@ -1,4 +1,10 @@
 import { RigidBody } from '@react-three/rapier';
+import * as THREE from 'three';
+
+const appleGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+const appleMaterial = new THREE.MeshStandardMaterial({ color: '#D32F2F' });
+const stemGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.1, 4);
+const stemMaterial = new THREE.MeshStandardMaterial({ color: '#5D4037' });
 
 interface AppleProps {
     position: [number, number, number];
@@ -20,15 +26,9 @@ export const Apple = ({ position, onFloorHit }: AppleProps) => {
                 }
             }}
         >
-            <mesh castShadow>
-                <sphereGeometry args={[0.25, 16, 16]} />
-                <meshStandardMaterial color="#D32F2F" />
-            </mesh>
+            <mesh castShadow geometry={appleGeometry} material={appleMaterial} />
             {/* Stem */}
-            <mesh position={[0, 0.2, 0]}>
-                <cylinderGeometry args={[0.02, 0.02, 0.1, 4]} />
-                <meshStandardMaterial color="#5D4037" />
-            </mesh>
+            <mesh position={[0, 0.2, 0]} geometry={stemGeometry} material={stemMaterial} />
         </RigidBody>
     );
 };
