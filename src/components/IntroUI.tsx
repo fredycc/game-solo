@@ -81,6 +81,7 @@ export const IntroUI = ({ onStart }: IntroUIProps) => {
                 in handleRemoteClick and never has React-state-based opacity issues */}
             <button
                 id="intro-start-btn"
+                data-remote-clickable="true"
                 onClick={onStart}
                 onContextMenu={(e) => e.preventDefault()}
             >

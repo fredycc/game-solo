@@ -4,15 +4,34 @@ import { Html } from '@react-three/drei';
 import { connectionManager } from '../../services/ConnectionManager';
 import * as THREE from 'three';
 
+/**
+ * RemotePointer — renders the yellow cursor driven by the P2P controller
+ * and handles remote click dispatch.
+ *
+ * HOW TO MAKE AN ELEMENT CLICKABLE FROM THE REMOTE CONTROLLER
+ * -----------------------------------------------------------
+ * Add the attribute  data-remote-clickable="true"  to any HTML element
+ * (button, div, anchor, etc.) that should respond to a TAP_CLICK event.
+ * This is the canonical, scene-agnostic way to opt in.
+ *
+ * Priority order inside handleRemoteClick:
+ *   1. data-remote-clickable="true"   ← explicit opt-in (preferred)
+ *   2. Native interactive tags: BUTTON, A, INPUT, SELECT, TEXTAREA
+ *   3. role="button"                  ← ARIA opt-in
+ *   (canvas is always skipped)
+ *
+ * Heuristics like cursor:pointer are intentionally removed to avoid
+ * false positives on R3F-generated Html wrapper divs.
+ */
 export const RemotePointer = () => {
     const { camera, raycaster, scene, size, viewport } = useThree();
     const pointerRef = useRef({ x: 0, y: 0 });
     const groupRef = useRef<THREE.Group>(null);
     const [visible, setVisible] = useState(false);
-    // Ref mirror of visible to avoid stale closures in the subscription callback
+    // Ref mirror of visible — avoids stale closures without extra re-renders
     const visibleRef = useRef(false);
     const lastMoveTime = useRef(Date.now());
-    // Keep latest viewport/size available in callbacks without re-subscribing
+    // Latest viewport/size available in callbacks without re-subscribing
     const viewportRef = useRef(viewport);
     const sizeRef = useRef(size);
 
@@ -21,7 +40,7 @@ export const RemotePointer = () => {
         sizeRef.current = size;
     }, [viewport, size]);
 
-    // Keep handleRemoteClick always up-to-date without being a dependency
+    // Always-fresh ref to handleRemoteClick (avoids stale closure in subscription)
     const handleRemoteClickRef = useRef<() => void>(() => { });
 
     useEffect(() => {
@@ -29,8 +48,7 @@ export const RemotePointer = () => {
             if (event.type === 'move') {
                 lastMoveTime.current = Date.now();
 
-                // FIX 1: Only call setVisible when state actually changes,
-                // avoiding a React re-render on every single move event.
+                // Only call setVisible on transition — avoids per-event re-renders
                 if (!visibleRef.current) {
                     visibleRef.current = true;
                     setVisible(true);
@@ -72,7 +90,7 @@ export const RemotePointer = () => {
             unsubscribe();
             statusUnsubscribe();
         };
-    }, []); // No dependencies — viewport/size accessed via refs
+    }, []); // No deps — viewport/size read via refs
 
     const handleRemoteClick = () => {
         const vp = viewportRef.current;
@@ -84,73 +102,72 @@ export const RemotePointer = () => {
         const clientX = ((ndcX + 1) * sz.width) / 2;
         const clientY = ((1 - ndcY) * sz.height) / 2;
 
-        // FIX 3: Broaden hit detection — walk up the DOM tree so we don't
-        // miss elements whose computed cursor is 'pointer' (e.g. React divs
-        // inside a container with pointerEvents:'none' on the parent).
+        const NATIVE_TAGS = new Set(['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA']);
+
         const elements = document.elementsFromPoint(clientX, clientY);
 
         for (const element of elements) {
             if (!(element instanceof HTMLElement)) continue;
             if (element.tagName === 'CANVAS') continue;
 
-            const isClickable =
-                element.tagName === 'BUTTON' ||
-                element.tagName === 'A' ||
-                element.getAttribute('role') === 'button' ||
-                element.style.cursor === 'pointer' ||
-                window.getComputedStyle(element).cursor === 'pointer' ||
-                element.style.pointerEvents === 'auto';
+            // Priority 1 — explicit opt-in via data attribute
+            const isExplicit = element.dataset.remoteClickable === 'true';
+            // Priority 2 — native interactive HTML elements
+            const isNative = NATIVE_TAGS.has(element.tagName);
+            // Priority 3 — ARIA button role
+            const isAriaButton = element.getAttribute('role') === 'button';
 
-            if (isClickable) {
-                const opts = { bubbles: true, cancelable: true, view: window, clientX, clientY };
-                element.dispatchEvent(new MouseEvent('mousedown', opts));
-                element.dispatchEvent(new MouseEvent('mouseup', opts));
-                element.dispatchEvent(new MouseEvent('click', opts));
-                // FIX 2: Immediately dispatch mouseleave so hover-state (React
-                // useState-based backgroundColor) resets after the remote click.
-                element.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true, cancelable: true }));
-                element.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, cancelable: true }));
+            if (isExplicit || isNative || isAriaButton) {
+                dispatchClick(element, clientX, clientY);
                 return;
             }
         }
 
-        // Fallback: Raycast into 3D scene
+        // Fallback: Raycast into 3D scene for R3F onClick handlers
         raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
         const intersects = raycaster.intersectObjects(scene.children, true);
 
-        if (intersects.length > 0) {
-            for (const intersect of intersects) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                let current: any = intersect.object;
-                while (current) {
-                    const handlers = current.__r3f?.handlers;
-                    if (handlers?.onClick) {
-                        handlers.onClick({
-                            stopped: false,
-                            target: current,
-                            nativeEvent: new MouseEvent('click'),
-                            pointer: new THREE.Vector2(ndcX, ndcY),
-                            point: intersect.point,
-                            face: intersect.face,
-                            distance: intersect.distance,
-                            uv: intersect.uv,
-                            stopPropagation: () => { },
-                        });
-                        return;
-                    }
-                    current = current.parent;
+        for (const intersect of intersects) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let current: any = intersect.object;
+            while (current) {
+                const handlers = current.__r3f?.handlers;
+                if (handlers?.onClick) {
+                    handlers.onClick({
+                        stopped: false,
+                        target: current,
+                        nativeEvent: new MouseEvent('click'),
+                        pointer: new THREE.Vector2(ndcX, ndcY),
+                        point: intersect.point,
+                        face: intersect.face,
+                        distance: intersect.distance,
+                        uv: intersect.uv,
+                        stopPropagation: () => { },
+                    });
+                    return;
                 }
+                current = current.parent;
             }
         }
     };
 
-    // Keep the ref always pointing at the latest version of the function
+    /** Dispatch a full click sequence and immediately clean up hover state. */
+    const dispatchClick = (element: HTMLElement, clientX: number, clientY: number) => {
+        const opts = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+        element.dispatchEvent(new MouseEvent('mousedown', opts));
+        element.dispatchEvent(new MouseEvent('mouseup', opts));
+        element.dispatchEvent(new MouseEvent('click', opts));
+        // Reset any hover state driven by mouseover/mouseenter
+        element.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, cancelable: true }));
+        element.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false, cancelable: true }));
+    };
+
+    // Keep ref pointing at the latest closure
     useEffect(() => {
         handleRemoteClickRef.current = handleRemoteClick;
     });
 
     useFrame(() => {
-        // FIX 1 cont.: Only call setVisible when transitioning, not every frame
         if (visibleRef.current && Date.now() - lastMoveTime.current > 5000) {
             visibleRef.current = false;
             setVisible(false);
