@@ -6,24 +6,49 @@ import * as THREE from 'three';
 
 export const RemotePointer = () => {
     const { camera, raycaster, scene, size, viewport } = useThree();
-    const pointerRef = useRef({ x: 0, y: 0 }); // Viewport coordinates (-width/2 to width/2)
+    const pointerRef = useRef({ x: 0, y: 0 });
     const groupRef = useRef<THREE.Group>(null);
     const [visible, setVisible] = useState(false);
+    // Ref mirror of visible to avoid stale closures in the subscription callback
+    const visibleRef = useRef(false);
     const lastMoveTime = useRef(Date.now());
+    // Keep latest viewport/size available in callbacks without re-subscribing
+    const viewportRef = useRef(viewport);
+    const sizeRef = useRef(size);
 
-    // We don't need a ref for the group anymore since we are using Html
-    // But we might want to keep the position logic clean.
+    useEffect(() => {
+        viewportRef.current = viewport;
+        sizeRef.current = size;
+    }, [viewport, size]);
+
+    // Keep handleRemoteClick always up-to-date without being a dependency
+    const handleRemoteClickRef = useRef<() => void>(() => { });
 
     useEffect(() => {
         const unsubscribe = connectionManager.subscribeEvents((event) => {
             if (event.type === 'move') {
-                setVisible(true);
                 lastMoveTime.current = Date.now();
 
+                // FIX 1: Only call setVisible when state actually changes,
+                // avoiding a React re-render on every single move event.
+                if (!visibleRef.current) {
+                    visibleRef.current = true;
+                    setVisible(true);
+                }
+
+                const vp = viewportRef.current;
                 const sensitivity = 0.02;
-                const newX = THREE.MathUtils.clamp(pointerRef.current.x + event.dx * sensitivity, -viewport.width / 2, viewport.width / 2);
-                const newY = THREE.MathUtils.clamp(pointerRef.current.y - event.dy * sensitivity, -viewport.height / 2, viewport.height / 2);
-                
+                const newX = THREE.MathUtils.clamp(
+                    pointerRef.current.x + event.dx * sensitivity,
+                    -vp.width / 2,
+                    vp.width / 2,
+                );
+                const newY = THREE.MathUtils.clamp(
+                    pointerRef.current.y - event.dy * sensitivity,
+                    -vp.height / 2,
+                    vp.height / 2,
+                );
+
                 pointerRef.current.x = newX;
                 pointerRef.current.y = newY;
 
@@ -31,58 +56,71 @@ export const RemotePointer = () => {
                     groupRef.current.position.set(newX, newY, 0);
                 }
             } else if (event.type === 'action' && event.action === 'TAP_CLICK') {
-                handleRemoteClick();
+                handleRemoteClickRef.current();
             }
         });
 
         const statusUnsubscribe = connectionManager.subscribeState((state) => {
-            if (state === 'connected') setVisible(true);
-            else setVisible(false);
+            const shouldBeVisible = state === 'connected';
+            if (visibleRef.current !== shouldBeVisible) {
+                visibleRef.current = shouldBeVisible;
+                setVisible(shouldBeVisible);
+            }
         });
 
         return () => {
             unsubscribe();
             statusUnsubscribe();
         };
-    }, [viewport, size]);
+    }, []); // No dependencies — viewport/size accessed via refs
 
     const handleRemoteClick = () => {
-        const ndcX = (pointerRef.current.x / (viewport.width / 2));
-        const ndcY = (pointerRef.current.y / (viewport.height / 2));
+        const vp = viewportRef.current;
+        const sz = sizeRef.current;
 
-        // Coordenadas de pantalla para HTML
-        const clientX = (ndcX + 1) * size.width / 2;
-        const clientY = (1 - ndcY) * size.height / 2;
+        const ndcX = pointerRef.current.x / (vp.width / 2);
+        const ndcY = pointerRef.current.y / (vp.height / 2);
 
-        // 1. Intentar interactuar con UI HTML PRIMERO (Prioridad Alta)
+        const clientX = ((ndcX + 1) * sz.width) / 2;
+        const clientY = ((1 - ndcY) * sz.height) / 2;
+
+        // FIX 3: Broaden hit detection — walk up the DOM tree so we don't
+        // miss elements whose computed cursor is 'pointer' (e.g. React divs
+        // inside a container with pointerEvents:'none' on the parent).
         const elements = document.elementsFromPoint(clientX, clientY);
 
         for (const element of elements) {
-            if (element instanceof HTMLElement) {
-                const isCanvas = element.tagName === 'CANVAS';
+            if (!(element instanceof HTMLElement)) continue;
+            if (element.tagName === 'CANVAS') continue;
 
+            const isClickable =
+                element.tagName === 'BUTTON' ||
+                element.tagName === 'A' ||
+                element.getAttribute('role') === 'button' ||
+                element.style.cursor === 'pointer' ||
+                window.getComputedStyle(element).cursor === 'pointer' ||
+                element.style.pointerEvents === 'auto';
 
-                // Check if element is interactive or is our button
-                const isClickable = element.tagName === 'BUTTON' || element.onclick || element.getAttribute('role') === 'button' || element.style.cursor === 'pointer' || window.getComputedStyle(element).cursor === 'pointer';
-
-                // Si encontramos un elemento interactivo que NO es el canvas, le damos click
-                if (!isCanvas && isClickable) {
-                    const options = { bubbles: true, cancelable: true, view: window, clientX, clientY };
-                    // Send full sequence
-                    element.dispatchEvent(new MouseEvent('mousedown', options));
-                    element.dispatchEvent(new MouseEvent('mouseup', options));
-                    element.dispatchEvent(new MouseEvent('click', options));
-                    return; // Stop after clicking the top-most interactive element
-                }
+            if (isClickable) {
+                const opts = { bubbles: true, cancelable: true, view: window, clientX, clientY };
+                element.dispatchEvent(new MouseEvent('mousedown', opts));
+                element.dispatchEvent(new MouseEvent('mouseup', opts));
+                element.dispatchEvent(new MouseEvent('click', opts));
+                // FIX 2: Immediately dispatch mouseleave so hover-state (React
+                // useState-based backgroundColor) resets after the remote click.
+                element.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true, cancelable: true }));
+                element.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, cancelable: true }));
+                return;
             }
         }
 
-        // 2. Si no hubo interacción HTML, probar Raycast 3D
+        // Fallback: Raycast into 3D scene
         raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
         const intersects = raycaster.intersectObjects(scene.children, true);
 
         if (intersects.length > 0) {
             for (const intersect of intersects) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 let current: any = intersect.object;
                 while (current) {
                     const handlers = current.__r3f?.handlers;
@@ -96,9 +134,9 @@ export const RemotePointer = () => {
                             face: intersect.face,
                             distance: intersect.distance,
                             uv: intersect.uv,
-                            stopPropagation: () => { }
+                            stopPropagation: () => { },
                         });
-                        return; // Click handled
+                        return;
                     }
                     current = current.parent;
                 }
@@ -106,9 +144,15 @@ export const RemotePointer = () => {
         }
     };
 
+    // Keep the ref always pointing at the latest version of the function
+    useEffect(() => {
+        handleRemoteClickRef.current = handleRemoteClick;
+    });
+
     useFrame(() => {
-        // Auto-hide after 5 seconds of inactivity
-        if (visible && Date.now() - lastMoveTime.current > 5000) {
+        // FIX 1 cont.: Only call setVisible when transitioning, not every frame
+        if (visibleRef.current && Date.now() - lastMoveTime.current > 5000) {
+            visibleRef.current = false;
             setVisible(false);
         }
     });
@@ -118,54 +162,47 @@ export const RemotePointer = () => {
     return (
         <group ref={groupRef} position={[pointerRef.current.x, pointerRef.current.y, 0]}>
             <Html
-                position={[0, 0, 0]} 
-            // Actually, if we use default zIndexRange with Html, it might get occluded by 3D objects if we are not careful.
-            // But we want it ON TOP of everything.
-            style={{
-                pointerEvents: 'none', // Crucial: lets clicks pass through
-                zIndex: 9999, // Crucial: puts it above all other UI
-                transform: 'translate3d(-50%, -50%, 0)', // Center the div on the coordinate
-            }}
-            zIndexRange={[9999, 9999]} // Force it to be always on top in R3F sorting too
-
-        >
-            <div style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '40px',
-                height: '40px',
-            }}>
-                {/* Visual for the remote cursor - CSS version */}
+                position={[0, 0, 0]}
+                style={{
+                    pointerEvents: 'none',
+                    zIndex: 9999,
+                    transform: 'translate3d(-50%, -50%, 0)',
+                }}
+                zIndexRange={[9999, 9999]}
+            >
                 <div style={{
-                    position: 'absolute',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 215, 0, 0.8)', // Gold
-                    boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
-                    border: '2px solid rgba(255, 140, 0, 1)' // Dark Orange
-                }} />
-
-                {/* Pulsing effect */}
-                <div style={{
-                    position: 'absolute',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 255, 0, 0.2)',
-                    animation: 'pulse 1.5s infinite'
-                }} />
-
-                <style>{`
-                    @keyframes pulse {
-                        0% { transform: scale(1); opacity: 0.2; }
-                        50% { transform: scale(1.2); opacity: 0.1; }
-                        100% { transform: scale(1); opacity: 0.2; }
-                    }
-                `}</style>
-            </div>
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '40px',
+                    height: '40px',
+                }}>
+                    <div style={{
+                        position: 'absolute',
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 215, 0, 0.8)',
+                        boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+                        border: '2px solid rgba(255, 140, 0, 1)',
+                    }} />
+                    <div style={{
+                        position: 'absolute',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 255, 0, 0.2)',
+                        animation: 'rp-pulse 1.5s infinite',
+                    }} />
+                    <style>{`
+                        @keyframes rp-pulse {
+                            0%   { transform: scale(1);   opacity: 0.2; }
+                            50%  { transform: scale(1.2); opacity: 0.1; }
+                            100% { transform: scale(1);   opacity: 0.2; }
+                        }
+                    `}</style>
+                </div>
             </Html>
         </group>
     );
