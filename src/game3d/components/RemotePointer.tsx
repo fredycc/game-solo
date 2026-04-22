@@ -93,18 +93,19 @@ export const RemotePointer = () => {
     }, []); // No deps — viewport/size read via refs
 
     const handleRemoteClick = () => {
-        const vp = viewportRef.current;
         const sz = sizeRef.current;
 
-        const ndcX = pointerRef.current.x / (vp.width / 2);
-        const ndcY = pointerRef.current.y / (vp.height / 2);
+        // Use the same projection as the camera to get NDC
+        const vector = new THREE.Vector3(pointerRef.current.x, pointerRef.current.y, 0);
+        vector.project(camera);
+        const ndcX = vector.x;
+        const ndcY = vector.y;
 
-        // FIX 1: Account for canvas offset so coordinates match the actual
-        // viewport position (important when the canvas doesn't start at 0,0).
         const canvas = document.querySelector('canvas');
         const canvasRect = canvas?.getBoundingClientRect();
         const offsetX = canvasRect?.left ?? 0;
         const offsetY = canvasRect?.top ?? 0;
+        
         const clientX = ((ndcX + 1) * sz.width) / 2 + offsetX;
         const clientY = ((1 - ndcY) * sz.height) / 2 + offsetY;
 
@@ -113,25 +114,28 @@ export const RemotePointer = () => {
         const elements = document.elementsFromPoint(clientX, clientY);
 
         for (const element of elements) {
-            if (!(element instanceof HTMLElement)) continue;
-            if (element.tagName === 'CANVAS') continue;
+            // Support both HTMLElement and SVGElement (icons inside buttons)
+            if (!(element instanceof HTMLElement || element instanceof SVGElement)) continue;
+            
+            // If it's an SVG, we want to check its parent button
+            let target: HTMLElement | null = element instanceof HTMLElement ? element : element.parentElement as HTMLElement;
+            
+            while (target && target !== document.body) {
+                if (target.tagName === 'CANVAS') break;
 
-            // Priority 1 — explicit opt-in via data attribute
-            const isExplicit = element.dataset.remoteClickable === 'true';
-            // Priority 2 — native interactive HTML elements
-            const isNative = NATIVE_TAGS.has(element.tagName);
-            // Priority 3 — ARIA button role
-            const isAriaButton = element.getAttribute('role') === 'button';
+                const isExplicit = target.dataset.remoteClickable === 'true';
+                const isNative = NATIVE_TAGS.has(target.tagName);
+                const isAriaButton = target.getAttribute('role') === 'button';
 
-            if (isExplicit || isNative || isAriaButton) {
-                dispatchClick(element, clientX, clientY);
-                return;
+                if (isExplicit || isNative || isAriaButton) {
+                    dispatchClick(target, clientX, clientY);
+                    return;
+                }
+                target = target.parentElement;
             }
         }
 
-        // FIX 2: Fallback — directly query [data-remote-clickable] elements
-        // via bounding rect. Works around engines where elementsFromPoint
-        // doesn't penetrate ancestors with pointerEvents:'none'.
+        // Fallback: Direct query by bounding rect (still useful for pointerEvents:none containers)
         const remoteClickables = document.querySelectorAll<HTMLElement>('[data-remote-clickable="true"]');
         for (const el of remoteClickables) {
             const rect = el.getBoundingClientRect();
@@ -142,7 +146,7 @@ export const RemotePointer = () => {
             }
         }
 
-        // Fallback: Raycast into 3D scene for R3F onClick handlers
+        // Final Fallback: Raycast into 3D scene
         raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
         const intersects = raycaster.intersectObjects(scene.children, true);
 
