@@ -1,6 +1,13 @@
 import { useEffect } from 'react';
 import { AudioAssets, AudioConfig } from '../../audio';
 
+declare global {
+    interface Window {
+        webkitAudioContext?: typeof AudioContext;
+        __audioVisibilityHandler?: () => void;
+    }
+}
+
 
 interface BackgroundMusicProps {
     mode: 'intro' | 'game';
@@ -46,7 +53,8 @@ class BackgroundAudioManager {
     private ensureContext() {
         if (this.ctx) return this.ctx;
 
-        const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCtor) throw new Error('AudioContext not supported');
         this.ctx = new AudioContextCtor();
 
         // Crear nodo de ganancia maestro para control de volumen
@@ -90,7 +98,7 @@ class BackgroundAudioManager {
 
                 this.sourceNode.stop(this.ctx!.currentTime + fadeOutDuration);
                 this.sourceNode.disconnect();
-            } catch (e) {
+            } catch {
                 // Ignorar errores si ya estaba detenido
             }
             this.sourceNode = null;
@@ -202,8 +210,8 @@ class BackgroundAudioManager {
     private setupListeners() {
         // Remover listener anterior si existía para no duplicar (sería mejor guardar ref, pero por simplicidad en singleton...)
         // Nota: En esta implementación simplificada, el listener de visibilidad es global y persistente
-        if (!(window as any).__audioVisibilityHandler) {
-            (window as any).__audioVisibilityHandler = () => {
+        if (!window.__audioVisibilityHandler) {
+            window.__audioVisibilityHandler = () => {
                 if (!this.ctx) return;
 
                 if (document.hidden) {
@@ -212,7 +220,7 @@ class BackgroundAudioManager {
                     this.ctx.resume();
                 }
             };
-            document.addEventListener('visibilitychange', (window as any).__audioVisibilityHandler);
+            document.addEventListener('visibilitychange', window.__audioVisibilityHandler);
         }
     }
 }

@@ -41,7 +41,9 @@ export const GameCanvas = () => {
 
             <Canvas
                 shadows
+                frameloop="demand"
                 dpr={[1, 1.5]}
+                performance={{ min: 0.5, max: 1, debounce: 200 }}
                 gl={{ powerPreference: 'high-performance' }}
                 camera={{ position: [0, 5, 10], fov: 50 }}
                 style={{ width: '100vw', height: '100vh', background: '#87CEEB' }}
@@ -58,8 +60,12 @@ export const GameCanvas = () => {
                     />
 
                     {gameState === 'game' && (
-                        <Physics gravity={[0, -9.81, 0]}>
-                            <MainScene3D onBack={() => setGameState('intro')} />
+                        <Physics 
+                            gravity={[0, -9.81, 0]}
+                            updateLoop="independent"
+                            interpolate={true}
+                        >
+                            <MainScene3D />
                         </Physics>
                     )}
 

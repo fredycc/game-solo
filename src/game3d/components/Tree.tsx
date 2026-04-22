@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, invalidate } from '@react-three/fiber';
 import type { ThreeElements } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -26,6 +26,9 @@ export const Tree = (props: ThreeElements['group']) => {
             const t = state.clock.getElapsedTime();
             groupRef.current.rotation.z = Math.sin(t * 1.5) * 0.05;
             groupRef.current.rotation.x = Math.cos(t * 1.0) * 0.02;
+            
+            // Keep animating in demand mode
+            invalidate();
         }
     });
 

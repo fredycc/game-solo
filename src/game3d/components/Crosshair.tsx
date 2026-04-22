@@ -1,4 +1,4 @@
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree, invalidate } from '@react-three/fiber';
 import { useRef } from 'react';
 import * as THREE from 'three';
 
@@ -23,6 +23,9 @@ export const Crosshair = ({ position }: CrosshairProps) => {
                 const y = (mouse.y * viewport.height) / 2;
                 ref.current.position.set(x, y, 0); // Assuming 2D plane logic on Z=0
             }
+            
+            // Keep tracking in demand mode
+            invalidate();
         }
     });
 

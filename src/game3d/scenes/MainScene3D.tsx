@@ -1,5 +1,5 @@
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Tree } from '../components/Tree';
 import { Apple } from '../components/Apple';
 import { Crosshair } from '../components/Crosshair';
@@ -7,18 +7,23 @@ import { connectionManager } from '../../services/ConnectionManager';
 
 import * as THREE from 'three';
 
-interface MainScene3DProps {
-    onBack: () => void;
-}
 
-export const MainScene3D = ({ }: MainScene3DProps) => {
+
+export const MainScene3D = () => {
     const [apples, setApples] = useState<{ id: string; position: [number, number, number] }[]>([]);
+    const spawnPos = useRef(new THREE.Vector3(0, 2, 0));
+
+    const spawnApple = (targetPosition: THREE.Vector3) => {
+        const id = Math.random().toString(36).substring(2, 11);
+        // Spawn slightly above the click point or at a fixed height
+        setApples(prev => [...prev, { id, position: [targetPosition.x, targetPosition.y, 0] }]);
+    };
 
     useEffect(() => {
         const unsubscribe = connectionManager.subscribeEvents((event) => {
             if (event.type === 'action' && event.action === 'DROP') {
                 // Spawn apple at a default position (e.g., from the tree) if remote triggered
-                spawnApple(new THREE.Vector3(0, 2, 0));
+                spawnApple(spawnPos.current);
             }
         });
 
@@ -27,13 +32,9 @@ export const MainScene3D = ({ }: MainScene3DProps) => {
         };
     }, []);
 
-    const spawnApple = (targetPosition: THREE.Vector3) => {
-        const id = Math.random().toString(36).substr(2, 9);
-        // Spawn slightly above the click point or at a fixed height
-        setApples(prev => [...prev, { id, position: [targetPosition.x, targetPosition.y, 0] }]);
-    };
 
-    const handlePointerDown = (e: any) => {
+
+    const handlePointerDown = (e: { point: THREE.Vector3 }) => {
         // e.point is the 3D point of intersection
         spawnApple(e.point);
     };

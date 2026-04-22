@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { useThree, useFrame } from '@react-three/fiber';
+import { useThree, useFrame, invalidate } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { connectionManager } from '../../services/ConnectionManager';
 import * as THREE from 'three';
@@ -30,10 +30,14 @@ export const RemotePointer = () => {
     const [visible, setVisible] = useState(false);
     // Ref mirror of visible — avoids stale closures without extra re-renders
     const visibleRef = useRef(false);
-    const lastMoveTime = useRef(Date.now());
+    const lastMoveTime = useRef(0); // Initialized in useEffect to maintain purity during render
     // Latest viewport/size available in callbacks without re-subscribing
     const viewportRef = useRef(viewport);
     const sizeRef = useRef(size);
+    
+    // Reusable vectors to avoid GC pressure
+    const vector3 = useRef(new THREE.Vector3());
+    const vector2 = useRef(new THREE.Vector2());
 
     useEffect(() => {
         viewportRef.current = viewport;
@@ -44,6 +48,7 @@ export const RemotePointer = () => {
     const handleRemoteClickRef = useRef<() => void>(() => { });
 
     useEffect(() => {
+        lastMoveTime.current = Date.now();
         const unsubscribe = connectionManager.subscribeEvents((event) => {
             if (event.type === 'move') {
                 lastMoveTime.current = Date.now();
@@ -73,6 +78,9 @@ export const RemotePointer = () => {
                 if (groupRef.current) {
                     groupRef.current.position.set(newX, newY, 0);
                 }
+                
+                // Manually request a frame in demand mode
+                invalidate();
             } else if (event.type === 'action' && event.action === 'TAP_CLICK') {
                 handleRemoteClickRef.current();
             }
@@ -96,7 +104,7 @@ export const RemotePointer = () => {
         const sz = sizeRef.current;
 
         // Use the same projection as the camera to get NDC
-        const vector = new THREE.Vector3(pointerRef.current.x, pointerRef.current.y, 0);
+        const vector = vector3.current.set(pointerRef.current.x, pointerRef.current.y, 0);
         vector.project(camera);
         const ndcX = vector.x;
         const ndcY = vector.y;
@@ -147,7 +155,7 @@ export const RemotePointer = () => {
         }
 
         // Final Fallback: Raycast into 3D scene
-        raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+        raycaster.setFromCamera(vector2.current.set(ndcX, ndcY), camera);
         const intersects = raycaster.intersectObjects(scene.children, true);
 
         for (const intersect of intersects) {
@@ -160,7 +168,7 @@ export const RemotePointer = () => {
                         stopped: false,
                         target: current,
                         nativeEvent: new MouseEvent('click'),
-                        pointer: new THREE.Vector2(ndcX, ndcY),
+                        pointer: vector2.current.set(ndcX, ndcY),
                         point: intersect.point,
                         face: intersect.face,
                         distance: intersect.distance,
@@ -200,7 +208,7 @@ export const RemotePointer = () => {
     if (!visible) return null;
 
     return (
-        <group ref={groupRef} position={[pointerRef.current.x, pointerRef.current.y, 0]}>
+        <group ref={groupRef}>
             <Html
                 position={[0, 0, 0]}
                 style={{
