@@ -99,8 +99,14 @@ export const RemotePointer = () => {
         const ndcX = pointerRef.current.x / (vp.width / 2);
         const ndcY = pointerRef.current.y / (vp.height / 2);
 
-        const clientX = ((ndcX + 1) * sz.width) / 2;
-        const clientY = ((1 - ndcY) * sz.height) / 2;
+        // FIX 1: Account for canvas offset so coordinates match the actual
+        // viewport position (important when the canvas doesn't start at 0,0).
+        const canvas = document.querySelector('canvas');
+        const canvasRect = canvas?.getBoundingClientRect();
+        const offsetX = canvasRect?.left ?? 0;
+        const offsetY = canvasRect?.top ?? 0;
+        const clientX = ((ndcX + 1) * sz.width) / 2 + offsetX;
+        const clientY = ((1 - ndcY) * sz.height) / 2 + offsetY;
 
         const NATIVE_TAGS = new Set(['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA']);
 
@@ -119,6 +125,19 @@ export const RemotePointer = () => {
 
             if (isExplicit || isNative || isAriaButton) {
                 dispatchClick(element, clientX, clientY);
+                return;
+            }
+        }
+
+        // FIX 2: Fallback — directly query [data-remote-clickable] elements
+        // via bounding rect. Works around engines where elementsFromPoint
+        // doesn't penetrate ancestors with pointerEvents:'none'.
+        const remoteClickables = document.querySelectorAll<HTMLElement>('[data-remote-clickable="true"]');
+        for (const el of remoteClickables) {
+            const rect = el.getBoundingClientRect();
+            if (clientX >= rect.left && clientX <= rect.right &&
+                clientY >= rect.top && clientY <= rect.bottom) {
+                dispatchClick(el, clientX, clientY);
                 return;
             }
         }
