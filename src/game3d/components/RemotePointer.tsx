@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { useThree, useFrame, invalidate } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { connectionManager } from '../../services/ConnectionManager';
 import * as THREE from 'three';
 
@@ -220,57 +221,50 @@ export const RemotePointer = () => {
     if (!visible) return null;
 
     return (
-        <group ref={groupRef} renderOrder={9999}>
-            {/* Main yellow dot */}
-            <mesh scale={[0.15, 0.15, 0.15]}>
-                <circleGeometry args={[1, 32]} />
-                <meshBasicMaterial 
-                    color="#FFD700" 
-                    transparent 
-                    opacity={0.8} 
-                    depthTest={false}
-                />
-            </mesh>
-            
-            {/* Border ring */}
-            <mesh scale={[0.15, 0.15, 0.15]}>
-                <ringGeometry args={[0.9, 1, 32]} />
-                <meshBasicMaterial 
-                    color="#FF8C00" 
-                    transparent 
-                    opacity={1} 
-                    depthTest={false}
-                />
-            </mesh>
-
-            {/* Pulsing outer ring */}
-            <PulseAnimation />
+        <group ref={groupRef}>
+            <Html
+                position={[0, 0, 0]}
+                style={{
+                    pointerEvents: 'none',
+                    zIndex: 9999, // Ensure it is above almost everything
+                    transform: 'translate3d(-50%, -50%, 0)',
+                }}
+                zIndexRange={[9999, 10000]}
+            >
+                <div style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '40px',
+                    height: '40px',
+                }}>
+                    <div style={{
+                        position: 'absolute',
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 215, 0, 0.8)',
+                        boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+                        border: '2px solid rgba(255, 140, 0, 1)',
+                    }} />
+                    <div style={{
+                        position: 'absolute',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 255, 0, 0.2)',
+                        animation: 'rp-pulse 1.5s infinite',
+                    }} />
+                    <style>{`
+                        @keyframes rp-pulse {
+                            0%   { transform: scale(1);   opacity: 0.2; }
+                            50%  { transform: scale(1.2); opacity: 0.1; }
+                            100% { transform: scale(1);   opacity: 0.2; }
+                        }
+                    `}</style>
+                </div>
+            </Html>
         </group>
     );
 };
-
-/** Separate component for the pulsing animation to avoid per-frame logic in main pointer */
-const PulseAnimation = () => {
-    const meshRef = useRef<THREE.Mesh>(null);
-    useFrame(({ clock }) => {
-        if (meshRef.current) {
-            const scale = 1 + Math.sin(clock.elapsedTime * 4) * 0.2;
-            meshRef.current.scale.set(scale, scale, 1);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const mat = meshRef.current.material as any;
-            mat.opacity = 0.3 * (1 - (scale - 0.8) / 0.4);
-        }
-    });
-    return (
-        <mesh ref={meshRef} scale={[0.2, 0.2, 0.2]}>
-            <ringGeometry args={[0.8, 1, 32]} />
-            <meshBasicMaterial 
-                color="#FFFF00" 
-                transparent 
-                opacity={0.3} 
-                depthTest={false}
-            />
-        </mesh>
-    );
-};
-
