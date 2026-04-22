@@ -40,7 +40,7 @@ export const GameCanvas = () => {
             )}
 
             <Canvas
-                shadows
+                shadows="soft"
                 frameloop="demand"
                 dpr={[1, 1.5]}
                 performance={{ min: 0.5, max: 1, debounce: 200 }}
@@ -56,7 +56,14 @@ export const GameCanvas = () => {
                         position={[10, 10, 5]}
                         intensity={1}
                         castShadow
-                        shadow-mapSize={[512, 512]}
+                        shadow-mapSize={[1024, 1024]}
+                        shadow-camera-near={0.5}
+                        shadow-camera-far={40}
+                        shadow-camera-left={-12}
+                        shadow-camera-right={12}
+                        shadow-camera-top={12}
+                        shadow-camera-bottom={-12}
+                        shadow-bias={-0.001}
                     />
 
                     {gameState === 'game' && (

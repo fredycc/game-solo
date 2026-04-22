@@ -39,10 +39,10 @@ export const Tree = (props: ThreeElements['group']) => {
 
             {/* Foliage - Layered Cones/Spheres for a better look */}
             <group position={[0, 4, 0]}>
-                <mesh position={[0, 0, 0]} castShadow geometry={foliageGeom1} material={foliageMat1} />
-                <mesh position={[1, 1, 0]} castShadow geometry={foliageGeom2} material={foliageMat2} />
-                <mesh position={[-1, 0.5, 0.8]} castShadow geometry={foliageGeom3} material={foliageMat3} />
-                <mesh position={[0, 1.5, -0.5]} castShadow geometry={foliageGeom4} material={foliageMat4} />
+                <mesh position={[0, 0, 0]} castShadow receiveShadow geometry={foliageGeom1} material={foliageMat1} />
+                <mesh position={[1, 1, 0]} castShadow receiveShadow geometry={foliageGeom2} material={foliageMat2} />
+                <mesh position={[-1, 0.5, 0.8]} castShadow receiveShadow geometry={foliageGeom3} material={foliageMat3} />
+                <mesh position={[0, 1.5, -0.5]} castShadow receiveShadow geometry={foliageGeom4} material={foliageMat4} />
             </group>
         </group>
     );
